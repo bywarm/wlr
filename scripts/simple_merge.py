@@ -37,7 +37,7 @@ thistime = datetime.now(zone)
 offset = thistime.strftime("%H:%M | %d.%m.%Y")
 
 GITHUB_TOKEN = os.environ.get("MY_TOKEN", "")
-REPO_NAME = os.environ.get("GITHUB_REPOSITORY", "bywarm/wlrusparser")
+REPO_NAME = os.environ.get("GITHUB_REPOSITORY", "bywarm/wlr")
 
 # Cloud.ru S3 конфигурация
 CLOUD_RU_ENDPOINT = os.environ.get("CLOUD_RU_ENDPOINT", "https://s3.cloud.ru/bucket-93b250")
