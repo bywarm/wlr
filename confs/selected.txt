@@ -490,4 +490,3 @@ vless://6408b7b0-2527-4d9f-b361-928222ec624f@130.193.59.133:443/?type=tcp&encryp
 vless://479809bf-064a-4667-88b3-c561096c9448@84.23.52.70:8443/?type=tcp&encryption=none&flow=xtls-rprx-vision&sni=m.vk.ru&fp=chrome&security=reality&pbk=7zd9mJilgjOrg_ohtw23Vmio-pdnYqeP_r-kiWt87Cg&sid=f4b4a6365558ea2e#244.%20%F0%9F%87%AD%F0%9F%87%BA%20VLESS%20%7C%20TG%3A%20%40wlrustg
 
 vless://6408b7b0-2527-4d9f-b361-928222ec624f@130.193.59.133:51101/?type=tcp&encryption=none&flow=xtls-rprx-vision&sni=yandex.ru&fp=chrome&security=reality&pbk=_CjW0Khlrr5z5oc9Oy6-w2ZEanz-zMBktVn5EOX9oTM&sid=4ffc99daad0f261f#245.%20%F0%9F%87%AE%F0%9F%87%B9%20VLESS%20%7C%20TG%3A%20%40wlrustg
-
