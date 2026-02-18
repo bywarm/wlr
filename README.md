@@ -3,7 +3,7 @@
 
 | Файл | Описание | Конфигов | Время обновления | Дата |
 |------|----------|----------|------------------|------|
-| [`merged.txt`](https://github.com/bywarm/wlr/raw/main/merged.txt) | Все конфиги из 16 источников | 5761 | 12:43 | 18.02.2026 |
-| [`wl.txt`](https://github.com/bywarm/wlr/raw/main/githubmirror/wl.txt) | Только конфиги из 180 подсетей | 2580 | 12:43 | 18.02.2026 |
-| [`selected.txt`](https://github.com/bywarm/wlr/raw/main/githubmirror/selected.txt) | Отборные админами конфиги, самый надежный список | не знаю | 12:43 | 18.02.2026 |
+| [`merged.txt`](https://github.com/bywarm/wlr/raw/main/merged.txt) | Все конфиги из 16 источников | 5762 | 13:41 | 18.02.2026 |
+| [`wl.txt`](https://github.com/bywarm/wlr/raw/main/githubmirror/wl.txt) | Только конфиги из 180 подсетей | 2574 | 13:41 | 18.02.2026 |
+| [`selected.txt`](https://github.com/bywarm/wlr/raw/main/githubmirror/selected.txt) | Отборные админами конфиги, самый надежный список | не знаю | 13:41 | 18.02.2026 |
 
