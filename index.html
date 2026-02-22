@@ -909,32 +909,21 @@
             // Data
             const sampleLinks = [
                 {
-                    title: "Проверенные подсети",
-                    icon: "fas fa-shield-check",
-                    desc: "Рекомендуется. Идет фильтрация подсети для надежности.",
-                    links: [
-                        { url: "https://wlrus.lol/confs/wl.txt", type: "primary" },
-                        { url: "https://wlr.s3-website.cloud.ru/bucket-93b250/wl.txt", type: "mirror" },
-                        { url: "https://gitverse.ru/api/repos/bywarm/rser/raw/branch/master/wl.txt", type: "mirror" }
-                    ]
-                },
-                {
                     title: "Отборные серверы",
                     icon: "fas fa-star",
                     desc: "Рекомендуется. Отбирается создателем и сообществом. Если хотите помочь с отбором - пишите в телеграм.",
                     links: [
                         { url: "https://wlrus.lol/confs/selected.txt", type: "primary" },
-                        { url: "https://wlr.s3-website.cloud.ru/bucket-93b250/selected.txt", type: "mirror" },
                         { url: "https://gitverse.ru/api/repos/bywarm/rser/raw/branch/master/selected.txt", type: "mirror" }
                     ]
                 },
                 {
-                    title: "Фильтрованный список (БОЛЬШЕ НЕ ОБНОВЛЯЕТСЯ)",
-                    icon: "fas fa-filter",
-                    desc: "Редко обновляется, но стабилен.",
+                    title: "Проверенные подсети",
+                    icon: "fas fa-shield-check",
+                    desc: "Рекомендуется, если отборные не работают. Идет фильтрация подсети для надежности. Много конфигов, телефоны трудно переваривают такое количество.",
                     links: [
-                        { url: "https://wlrus.lol/confs/filtered.txt", type: "primary" },
-                        { url: "https://gitverse.ru/api/repos/bywarm/rser/raw/branch/master/filtered.txt", type: "mirror" }
+                        { url: "https://wlrus.lol/confs/wl.txt", type: "primary" },
+                        { url: "https://gitverse.ru/api/repos/bywarm/rser/raw/branch/master/wl.txt", type: "mirror" }
                     ]
                 },
                 {
@@ -943,7 +932,6 @@
                     desc: "Все подряд. Может быть мусор.",
                     links: [
                         { url: "https://wlrus.lol/confs/merged.txt", type: "primary" },
-                        { url: "https://wlr.s3-website.cloud.ru/bucket-93b250/merged.txt", type: "mirror" },
                         { url: "https://gitverse.ru/api/repos/bywarm/rser/raw/branch/master/merged.txt", type: "mirror" }
                     ]
                 }
