@@ -124,7 +124,7 @@ EXCLUDE_SETTINGS = {
     "save_excluded": True,    # Сохранять исключенные в отдельный файл
 }
 
-CIDR_NAME_MAPPING_FINAL = {
+CIDR_NAME_MAPPING = {
     # Original CIDRs (180 entries)
     "5.188.0.0/16": "?",
     "37.18.0.0/16": "?",
@@ -343,7 +343,7 @@ CIDR_NAME_MAPPING_FINAL = {
     "185.193.90.0/23": "Selectel",
 }
 # Список подсетей для проверки (объекты ip_network)
-WHITELIST_SUBNETS = list(CIDR_NAME_MAPPING_FINAL.keys())
+WHITELIST_SUBNETS = list(CIDR_NAME_MAPPING.keys())
 
 # Для быстрой проверки создадим список сетей и параллельный список имён
 WHITELIST_NETWORKS = []
