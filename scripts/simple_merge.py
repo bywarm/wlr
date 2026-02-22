@@ -115,10 +115,9 @@ EXCLUDE_PATTERNS = [
     "38388282",
     "star_test1",
     "11111111-1111-1111-1111-111111111111",
-    "xxxxxxxxxx1"
 ]
 
-# Дополниастройки
+# Дополнительные настройки
 EXCLUDE_SETTINGS = {
     "case_sensitive": False,  # Регистрозависимость
     "log_excluded": True,     # Логировать исключенные конфиги
@@ -328,6 +327,12 @@ URLS = [
     "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-checked.txt",
     "https://raw.githubusercontent.com/bywarm/wlr/refs/heads/main/test.txt",
 ]
+
+THANKS_MARKERS = {
+    '@YoutubeUnBlockRu': '@YoutubeUnBlockRu',
+    '%F0%9F%87%B7%F0%9F%87': '@GoodbyeWLALT',
+}
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 CHROME_UA = (
@@ -553,6 +558,51 @@ def is_ip_in_subnets(ip_str: str) -> bool:
     except ValueError:
         return False
 
+def extract_sni(config: str) -> str:
+    """Извлекает SNI из конфига, если возможно"""
+    if not config:
+        return ""
+    
+    try:
+        # VLESS, Trojan
+        if config.startswith(("vless://", "trojan://")):
+            parsed = urllib.parse.urlparse(config)
+            query_params = urllib.parse.parse_qs(parsed.query)
+            sni_list = query_params.get('sni', [])
+            if sni_list:
+                return sni_list[0]
+        
+        # VMESS
+        elif config.startswith("vmess://"):
+            payload = config[8:]
+            rem = len(payload) % 4
+            if rem:
+                payload += '=' * (4 - rem)
+            decoded = base64.b64decode(payload).decode('utf-8', errors='ignore')
+            if decoded.startswith('{'):
+                j = json.loads(decoded)
+                # Сначала ищем sni, потом host (часто используется как sni), потом add
+                sni = j.get('sni') or j.get('host') or j.get('add')
+                if sni:
+                    return sni
+        
+        # Для простых строк вида host:port или протокол://host:port?params
+        # Попробуем извлечь хост и проверить, является ли он доменом
+        host_port = extract_host_port(config)
+        if host_port:
+            host = host_port[0]
+            # Если хост не IP, вероятно это SNI
+            try:
+                ipaddress.ip_address(host)
+                # это IP, не возвращаем как SNI (можно, но по примеру показан домен)
+                return ""
+            except ValueError:
+                # это домен
+                return host
+    except Exception:
+        pass
+    
+    return ""
 
 def download_and_process_url(url: str) -> list[str]:
     """Загружает и обрабатывает конфиги с одного URL"""
@@ -590,10 +640,52 @@ def download_and_process_url(url: str) -> list[str]:
         return []
     
 
-def add_numbering_to_name(config: str, number: int, has_thanks: bool = False) -> str:
-    """Добавляет нумерацию и вотермарк в поле name конфига.
-       Если has_thanks=True, добавляет ещё и благодарность @YoutubeUnBlockRu."""
+def add_numbering_to_name(config: str, number: int, thanks_text: str = "", sni: str = "", is_cidr: bool = False) -> str:
+    """Добавляет нумерацию, SNI, метку CIDR и вотермарк в поле name конфига."""
     try:
+        # Определяем протокол для заголовка
+        proto = "CONFIG"
+        if config.startswith("vmess://"):
+            proto = "VMESS"
+        elif config.startswith("vless://"):
+            proto = "VLESS"
+        elif config.startswith("trojan://"):
+            proto = "TROJAN"
+        elif config.startswith("ss://"):
+            proto = "SS"
+        elif config.startswith("ssr://"):
+            proto = "SSR"
+        elif config.startswith("tuic://"):
+            proto = "TUIC"
+        elif config.startswith("hysteria://"):
+            proto = "HYSTERIA"
+        elif config.startswith("hysteria2://"):
+            proto = "HYSTERIA2"
+        
+        # Извлекаем флаг из существующего имени, если есть
+        flag = ""
+        if '#' in config:
+            fragment = config.split('#', 1)[1]
+            fragment_unquoted = urllib.parse.unquote(fragment)
+            flag_match = re.search(r'[\U0001F1E6-\U0001F1FF]{2}', fragment_unquoted)
+        else:
+            flag_match = re.search(r'[\U0001F1E6-\U0001F1FF]{2}', config)
+        if flag_match:
+            flag = flag_match.group(0) + " "
+        
+        # Формируем базовое имя
+        base_parts = [f"{number}. {flag}{proto}"]
+        if sni:
+            base_parts.append(f"SNI: {sni}")
+        if is_cidr:
+            base_parts.append("CIDR")
+        base_parts.append("TG: @wlrustg")
+        if thanks_text:
+            base_parts.append(f"Thanks: {thanks_text}")
+        
+        new_name = " | ".join(base_parts)
+        
+        # Теперь вставляем это имя в конфиг в зависимости от типа
         if config.startswith("vmess://"):
             try:
                 payload = config[8:]
@@ -605,20 +697,7 @@ def add_numbering_to_name(config: str, number: int, has_thanks: bool = False) ->
                 
                 if decoded.startswith('{'):
                     j = json.loads(decoded)
-                    existing_ps = j.get('ps', '')
-                    
-                    flag = ""
-                    flag_match = re.search(r'[\U0001F1E6-\U0001F1FF]{2}', existing_ps)
-                    if flag_match:
-                        flag = flag_match.group(0) + " "
-                    
-                    # Формируем базовое имя
-                    base_name = f"{number}. {flag}VMESS | TG: @wlrustg"
-                    if has_thanks:
-                        base_name += " | Thanks: @YoutubeUnBlockRu"
-                    
-                    j['ps'] = base_name
-                    
+                    j['ps'] = new_name
                     new_json = json.dumps(j, separators=(',', ':'))
                     encoded = base64.b64encode(new_json.encode()).decode()
                     return f"vmess://{encoded}"
@@ -626,123 +705,23 @@ def add_numbering_to_name(config: str, number: int, has_thanks: bool = False) ->
                 pass
             return config
             
-        elif config.startswith("vless://"):
-            parsed = urllib.parse.urlparse(config)
-            
-            existing_fragment = urllib.parse.unquote(parsed.fragment) if parsed.fragment else ""
-            
-            flag = ""
-            flag_match = re.search(r'[\U0001F1E6-\U0001F1FF]{2}', existing_fragment)
-            if flag_match:
-                flag = flag_match.group(0) + " "
-            
-            # Формируем базовое имя
-            base_name = f"{number}. {flag}VLESS | TG: @wlrustg"
-            if has_thanks:
-                base_name += " | Thanks: @YoutubeUnBlockRu"
-            
-            new_fragment = urllib.parse.quote(base_name, safe='')
-            
-            new_parsed = parsed._replace(fragment=new_fragment)
-            new_config = urllib.parse.urlunparse(new_parsed)
-            
-            return new_config
-            
-        elif config.startswith("trojan://"):
-            parsed = urllib.parse.urlparse(config)
-            
-            existing_fragment = urllib.parse.unquote(parsed.fragment) if parsed.fragment else ""
-            
-            flag = ""
-            flag_match = re.search(r'[\U0001F1E6-\U0001F1FF]{2}', existing_fragment)
-            if flag_match:
-                flag = flag_match.group(0) + " "
-            
-            base_name = f"{number}. {flag}TROJAN | TG: @wlrustg"
-            if has_thanks:
-                base_name += " | Thanks: @YoutubeUnBlockRu"
-            
-            new_fragment = urllib.parse.quote(base_name, safe='')
-            
-            new_parsed = parsed._replace(fragment=new_fragment)
-            new_config = urllib.parse.urlunparse(new_parsed)
-            
-            return new_config
-            
-        elif config.startswith("ss://"):
-            parsed = urllib.parse.urlparse(config)
-            
-            existing_fragment = urllib.parse.unquote(parsed.fragment) if parsed.fragment else ""
-            
-            name_from_query = ""
-            if not existing_fragment and parsed.query:
-                params = urllib.parse.parse_qs(parsed.query)
-                if 'name' in params:
-                    name_from_query = urllib.parse.unquote(params['name'][0])
-            
-            existing_name = existing_fragment or name_from_query
-            
-            flag = ""
-            flag_match = re.search(r'[\U0001F1E6-\U0001F1FF]{2}', existing_name)
-            if flag_match:
-                flag = flag_match.group(0) + " "
-            
-            base_name = f"{number}. {flag}SS | TG: @wlrustg"
-            if has_thanks:
-                base_name += " | Thanks: @YoutubeUnBlockRu"
-            
-            new_fragment = urllib.parse.quote(base_name, safe='')
-            
-            new_parsed = parsed._replace(fragment=new_fragment)
-            new_config = urllib.parse.urlunparse(new_parsed)
-            
-            return new_config
+        elif config.startswith(("vless://", "trojan://", "ss://", "ssr://", "tuic://", "hysteria://", "hysteria2://")):
+            # Для URL-протоколов заменяем или добавляем фрагмент
+            if '#' in config:
+                base_part = config.rsplit('#', 1)[0]
+            else:
+                base_part = config
+            new_fragment = urllib.parse.quote(new_name, safe='')
+            return f"{base_part}#{new_fragment}"
             
         else:
+            # Для других форматов (например, IP:port) просто добавляем # с именем
             if '#' in config:
-                base_part, fragment = config.rsplit('#', 1)
-                existing_fragment = urllib.parse.unquote(fragment)
-                
-                flag = ""
-                flag_match = re.search(r'[\U0001F1E6-\U0001F1FF]{2}', existing_fragment)
-                if flag_match:
-                    flag = flag_match.group(0) + " "
-                
-                config_type = "CONFIG"
-                if config.startswith("ssr://"):
-                    config_type = "SSR"
-                elif config.startswith("tuic://"):
-                    config_type = "TUIC"
-                elif config.startswith("hysteria://"):
-                    config_type = "HYSTERIA"
-                elif config.startswith("hysteria2://"):
-                    config_type = "HYSTERIA2"
-                
-                base_name = f"{number}. {flag}{config_type} | TG: @wlrustg"
-                if has_thanks:
-                    base_name += " | Thanks: @YoutubeUnBlockRu"
-                
-                new_fragment = urllib.parse.quote(base_name, safe='')
-                
-                return f"{base_part}#{new_fragment}"
+                base_part = config.rsplit('#', 1)[0]
             else:
-                config_type = "CONFIG"
-                if config.startswith("ssr://"):
-                    config_type = "SSR"
-                elif config.startswith("tuic://"):
-                    config_type = "TUIC"
-                elif config.startswith("hysteria://"):
-                    config_type = "HYSTERIA"
-                elif config.startswith("hysteria2://"):
-                    config_type = "HYSTERIA2"
-                
-                base_name = f"{number}. {config_type} | TG: @wlrustg"
-                if has_thanks:
-                    base_name += " | Thanks: @YoutubeUnBlockRu"
-                
-                new_fragment = urllib.parse.quote(base_name, safe='')
-                
-                return f"{config}#{new_fragment}"
+                base_part = config
+            new_fragment = urllib.parse.quote(new_name, safe='')
+            return f"{base_part}#{new_fragment}"
                 
     except Exception as e:
         log(f"Ошибка добавления нумерации к конфигу: {str(e)[:100]}")
@@ -766,22 +745,41 @@ def extract_existing_info(config: str) -> tuple:
 
 
 def process_configs_with_numbering(configs: list[str]) -> list[str]:
-    """Добавляет нумерацию и вотермарк в поле name конфигов.
-       Если в исходном конфиге уже есть упоминание @YoutubeUnBlockRu, то добавляется благодарность."""
+    """Добавляет нумерацию, SNI, метку CIDR и вотермарк в поле name конфигов."""
     processed_configs = []
     
     for i, config in enumerate(configs, 1):
         existing_number, _, existing_tg = extract_existing_info(config)
         
-        # Проверяем, содержит ли конфиг благодарность (признак - наличие @YoutubeUnBlockRu)
-        has_thanks = '@YoutubeUnBlockRu' in config
+        # Определяем, есть ли в конфиге маркеры благодарности
+        thanks_text = ""
+        for marker, thanks in THANKS_MARKERS.items():
+            if marker in config:
+                thanks_text = thanks
+                break  # берём первый найденный
+        
+        # Извлекаем SNI
+        sni = extract_sni(config)
+        
+        # Определяем, является ли конфиг CIDR (IP в белых подсетях)
+        is_cidr = False
+        host_port = extract_host_port(config)
+        if host_port:
+            host = host_port[0]
+            try:
+                ipaddress.ip_address(host)  # проверяем, что это IP
+                if is_ip_in_subnets(host):
+                    is_cidr = True
+            except ValueError:
+                # это домен, не CIDR
+                pass
         
         # Если уже есть номер и наш вотермарк, не меняем
         if existing_number and "TG: @wlrustg" in config:
             processed_configs.append(config)
         else:
-            # Добавляем нумерацию с учётом has_thanks
-            processed = add_numbering_to_name(config, i, has_thanks=has_thanks)
+            # Добавляем нумерацию с новыми параметрами
+            processed = add_numbering_to_name(config, i, thanks_text=thanks_text, sni=sni, is_cidr=is_cidr)
             processed_configs.append(processed)
     
     return processed_configs
@@ -1065,7 +1063,7 @@ def process_selected_file():
                 if duplicates_count > 0:
                     log(f"🔍 Найдено {duplicates_count} дубликатов в selected.txt")
                 
-                # Обрабатываем конфиги с нумерацией (без has_thanks, так как оно определится внутри process_configs_with_numbering)
+                # Обрабатываем конфиги с нумерацией (благодарность определится внутри process_configs_with_numbering)
                 unique_configs = [config for _, config in unique_configs_with_index]
                 processed_configs = process_configs_with_numbering(unique_configs)
                 
