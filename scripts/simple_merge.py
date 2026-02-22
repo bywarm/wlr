@@ -589,8 +589,9 @@ def download_and_process_url(url: str) -> list[str]:
         return []
     
 
-def add_numbering_to_name(config: str, number: int) -> str:
-    """Добавляет нумерацию и вотермарк в поле name конфига"""
+def add_numbering_to_name(config: str, number: int, has_thanks: bool = False) -> str:
+    """Добавляет нумерацию и вотермарк в поле name конфига.
+       Если has_thanks=True, добавляет ещё и благодарность @YoutubeUnBlockRu."""
     try:
         if config.startswith("vmess://"):
             try:
@@ -610,8 +611,12 @@ def add_numbering_to_name(config: str, number: int) -> str:
                     if flag_match:
                         flag = flag_match.group(0) + " "
                     
-                    new_name = f"{number}. {flag}VMESS | TG: @wlrustg"
-                    j['ps'] = new_name
+                    # Формируем базовое имя
+                    base_name = f"{number}. {flag}VMESS | TG: @wlrustg"
+                    if has_thanks:
+                        base_name += " | Thanks: @YoutubeUnBlockRu"
+                    
+                    j['ps'] = base_name
                     
                     new_json = json.dumps(j, separators=(',', ':'))
                     encoded = base64.b64encode(new_json.encode()).decode()
@@ -630,9 +635,12 @@ def add_numbering_to_name(config: str, number: int) -> str:
             if flag_match:
                 flag = flag_match.group(0) + " "
             
-            new_name = f"{number}. {flag}VLESS | TG: @wlrustg"
+            # Формируем базовое имя
+            base_name = f"{number}. {flag}VLESS | TG: @wlrustg"
+            if has_thanks:
+                base_name += " | Thanks: @YoutubeUnBlockRu"
             
-            new_fragment = urllib.parse.quote(new_name, safe='')
+            new_fragment = urllib.parse.quote(base_name, safe='')
             
             new_parsed = parsed._replace(fragment=new_fragment)
             new_config = urllib.parse.urlunparse(new_parsed)
@@ -649,9 +657,11 @@ def add_numbering_to_name(config: str, number: int) -> str:
             if flag_match:
                 flag = flag_match.group(0) + " "
             
-            new_name = f"{number}. {flag}TROJAN | TG: @wlrustg"
+            base_name = f"{number}. {flag}TROJAN | TG: @wlrustg"
+            if has_thanks:
+                base_name += " | Thanks: @YoutubeUnBlockRu"
             
-            new_fragment = urllib.parse.quote(new_name, safe='')
+            new_fragment = urllib.parse.quote(base_name, safe='')
             
             new_parsed = parsed._replace(fragment=new_fragment)
             new_config = urllib.parse.urlunparse(new_parsed)
@@ -676,9 +686,11 @@ def add_numbering_to_name(config: str, number: int) -> str:
             if flag_match:
                 flag = flag_match.group(0) + " "
             
-            new_name = f"{number}. {flag}SS | TG: @wlrustg"
+            base_name = f"{number}. {flag}SS | TG: @wlrustg"
+            if has_thanks:
+                base_name += " | Thanks: @YoutubeUnBlockRu"
             
-            new_fragment = urllib.parse.quote(new_name, safe='')
+            new_fragment = urllib.parse.quote(base_name, safe='')
             
             new_parsed = parsed._replace(fragment=new_fragment)
             new_config = urllib.parse.urlunparse(new_parsed)
@@ -705,8 +717,11 @@ def add_numbering_to_name(config: str, number: int) -> str:
                 elif config.startswith("hysteria2://"):
                     config_type = "HYSTERIA2"
                 
-                new_name = f"{number}. {flag}{config_type} | TG: @wlrustg"
-                new_fragment = urllib.parse.quote(new_name, safe='')
+                base_name = f"{number}. {flag}{config_type} | TG: @wlrustg"
+                if has_thanks:
+                    base_name += " | Thanks: @YoutubeUnBlockRu"
+                
+                new_fragment = urllib.parse.quote(base_name, safe='')
                 
                 return f"{base_part}#{new_fragment}"
             else:
@@ -720,8 +735,11 @@ def add_numbering_to_name(config: str, number: int) -> str:
                 elif config.startswith("hysteria2://"):
                     config_type = "HYSTERIA2"
                 
-                new_name = f"{number}. {config_type} | TG: @wlrustg"
-                new_fragment = urllib.parse.quote(new_name, safe='')
+                base_name = f"{number}. {config_type} | TG: @wlrustg"
+                if has_thanks:
+                    base_name += " | Thanks: @YoutubeUnBlockRu"
+                
+                new_fragment = urllib.parse.quote(base_name, safe='')
                 
                 return f"{config}#{new_fragment}"
                 
@@ -747,18 +765,22 @@ def extract_existing_info(config: str) -> tuple:
 
 
 def process_configs_with_numbering(configs: list[str]) -> list[str]:
-    """Добавляет нумерацию и вотермарк в поле name конфигов"""
+    """Добавляет нумерацию и вотермарк в поле name конфигов.
+       Если в исходном конфиге уже есть упоминание @YoutubeUnBlockRu, то добавляется благодарность."""
     processed_configs = []
     
     for i, config in enumerate(configs, 1):
         existing_number, _, existing_tg = extract_existing_info(config)
         
+        # Проверяем, содержит ли конфиг благодарность (признак - наличие @YoutubeUnBlockRu)
+        has_thanks = '@YoutubeUnBlockRu' in config
+        
         # Если уже есть номер и наш вотермарк, не меняем
         if existing_number and "TG: @wlrustg" in config:
             processed_configs.append(config)
         else:
-            # Добавляем нумерацию
-            processed = add_numbering_to_name(config, i)
+            # Добавляем нумерацию с учётом has_thanks
+            processed = add_numbering_to_name(config, i, has_thanks=has_thanks)
             processed_configs.append(processed)
     
     return processed_configs
@@ -1034,7 +1056,7 @@ def process_selected_file():
                 if duplicates_count > 0:
                     log(f"🔍 Найдено {duplicates_count} дубликатов в selected.txt")
                 
-                # Обрабатываем конфиги с нумерацией
+                # Обрабатываем конфиги с нумерацией (без has_thanks, так как оно определится внутри process_configs_with_numbering)
                 unique_configs = [config for _, config in unique_configs_with_index]
                 processed_configs = process_configs_with_numbering(unique_configs)
                 
