@@ -115,6 +115,7 @@ EXCLUDE_PATTERNS = [
     "38388282",
     "star_test1",
     "11111111-1111-1111-1111-111111111111",
+    "localhost"
 ]
 
 # Дополнительные настройки
@@ -786,6 +787,14 @@ def process_configs_with_numbering(configs: list[str]) -> list[str]:
     return processed_configs
 
 
+def prioritize_configs(configs: list[str]) -> list[str]:
+    """
+    Сортирует конфиги так, чтобы конфиги с '@YoutubeUnBlockRu' были в начале.
+    Это даёт им приоритет при дедупликации.
+    """
+    return sorted(configs, key=lambda c: '@YoutubeUnBlockRu' not in c)
+
+
 def merge_and_deduplicate(all_configs: list[str]) -> tuple[list[str], list[str]]:
     """Объединяет и дедуплицирует конфиги, возвращает два списка: все конфиги и whitelist конфиги"""
     if not all_configs:
@@ -1440,13 +1449,17 @@ def main():
     # 3. Добавляем selected конфиги в общий список
     all_configs.extend(selected_configs)
     
-    # 4. Дедупликация и сортировка по подсетям
+    # 4. Приоритизация: конфиги с @YoutubeUnBlockRu должны идти первыми
+    log("⭐ Применяем приоритет для конфигов с @YoutubeUnBlockRu...")
+    all_configs = prioritize_configs(all_configs)
+    
+    # 5. Дедупликация и сортировка по подсетям
     log("🔄 Дедупликация и фильтрация...")
     unique_configs, whitelist_configs = merge_and_deduplicate(all_configs)
     log("🔄 После дедупликации: " + str(len(unique_configs)) + " конфигов")
     log("🛡️ Whitelist конфигов: " + str(len(whitelist_configs)))
     
-    # 5. ФИЛЬТРАЦИЯ ИСКЛЮЧЕНИЙ - НОВЫЙ ЭТАП
+    # 6. ФИЛЬТРАЦИЯ ИСКЛЮЧЕНИЙ
     log("🚫 Применение списка исключений...")
     
     # Фильтруем основной список (merged)
@@ -1469,20 +1482,20 @@ def main():
     log(f"   • merged: {len(unique_configs)} конфигов (исключено {len(excluded_unique)})")
     log(f"   • whitelist: {len(whitelist_configs)} конфигов (исключено {len(excluded_whitelist)})")
     
-    # 6. Сохраняем локально
+    # 7. Сохраняем локально
     os.makedirs("confs", exist_ok=True)
     
     # СОХРАНЯЕМ merged.txt С НУМЕРАЦИЕЙ (включая конфиги из selected.txt)
     save_to_file(unique_configs, "merged", "Объединенные конфиги (после исключений)", add_numbering=True)
     save_to_file(whitelist_configs, "wl", "Whitelist конфиги (после исключений)", add_numbering=True)
     
-    # 7. Загружаем на GitHub
+    # 8. Загружаем на GitHub
     log("🌐 Загрузка на GitHub...")
     upload_to_github(PATHS["merged"])
     upload_to_github(PATHS["wl"])
     upload_to_github(PATHS["selected"])
     
-    # 8. Загружаем в Cloud.ru
+    # 9. Загружаем в Cloud.ru
     log("☁️  Начинаю загрузку в Cloud.ru...")
     files_to_upload = {
         "merged.txt": PATHS["merged"],
@@ -1513,10 +1526,10 @@ def main():
     else:
         log("ℹ️  Токен GitVerse не задан, пропускаю загрузку")
     
-    # 9. Обновляем README
+    # 10. Обновляем README
     update_readme(len(unique_configs), len(whitelist_configs))
     
-    # 10. Выводим итоги
+    # 11. Выводим итоги
     log("=" * 60)
     log("📊 ИТОГИ:")
     log("   🌐 Источников: " + str(len(URLS)))
