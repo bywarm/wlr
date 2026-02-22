@@ -115,10 +115,10 @@ EXCLUDE_PATTERNS = [
     "38388282",
     "star_test1",
     "11111111-1111-1111-1111-111111111111",
-    "localhost"
+    "xxxxxxxxxx1"
 ]
 
-# Дополнительные настройки
+# Дополниастройки
 EXCLUDE_SETTINGS = {
     "case_sensitive": False,  # Регистрозависимость
     "log_excluded": True,     # Логировать исключенные конфиги
