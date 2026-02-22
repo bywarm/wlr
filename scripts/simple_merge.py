@@ -343,7 +343,7 @@ CIDR_NAME_MAPPING_FINAL = {
     "185.193.90.0/23": "Selectel",
 }
 # Список подсетей для проверки (объекты ip_network)
-WHITELIST_SUBNETS = list(CIDR_NAME_MAPPING.keys())
+WHITELIST_SUBNETS = list(CIDR_NAME_MAPPING_FINAL.keys())
 
 # Для быстрой проверки создадим список сетей и параллельный список имён
 WHITELIST_NETWORKS = []
