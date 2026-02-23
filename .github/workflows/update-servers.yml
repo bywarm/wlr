@@ -101,21 +101,32 @@ jobs:
         echo "📁 Используемая папка: $OUTPUT_DIR"
         python scripts/simple_merge.py   # предполагается, что скрипт лежит в scripts/
 
-    - name: 📄 Prepare links.txt from merged confs
+    - name: 📄 Prepare links.txt from merged configs
       run: |
         cp "$OUTPUT_DIR/merged.txt" links.txt
         echo "links.txt created with $(wc -l < links.txt) lines"
-        
-    - name: Debug merged.txt content (hex)
-      run: |
-        echo "=== merged.txt first 200 bytes (hex) ==="
-        head -c 200 confs/merged.txt | hexdump -C
-        echo "=== end ==="
 
-    - name: 🔍 Run vless_checker
+    - name: 📄 Debug links.txt content
+      run: |
+        echo "=== Первые 10 строк links.txt ==="
+        head -n 10 links.txt
+        echo "=== Количество строк с 'vless://': $(grep -c 'vless://' links.txt || true)"
+        echo "=== Первые 5 строк с 'vless://' ==="
+        grep 'vless://' links.txt | head -n 5
+
+    - name: 📄 Create clean links file (without headers)
+      run: |
+        grep -E '^(vless|vmess|trojan|ss|ssr|tuic|hysteria)://' links.txt > clean_links.txt || true
+        echo "Чистых ссылок: $(wc -l < clean_links.txt)"
+        if [ ! -s clean_links.txt ]; then
+          echo "❌ Нет валидных ссылок в clean_links.txt!"
+          exit 1
+        fi
+
+    - name: 🔍 Run vless_checker on clean file
       env:
-        LINKS_FILE: links.txt
-      run: python -u vless_checker.py 
+        LINKS_FILE: clean_links.txt
+      run: python -u vless_checker.py
 
     - name: 🔍 Speedtest
       run: |
