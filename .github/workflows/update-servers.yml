@@ -5,11 +5,6 @@ on:
     - cron: '0 * * * *'
   push:
     branches: [ main ]
-    # paths-ignore:
-    #   - 'githubmirror/merged.txt'
-    #   - 'githubmirror/wl.txt'
-    #   - 'githubmirror/selected.txt'
-    #   - 'README.md'
   workflow_dispatch:
     inputs:
       folder_name:
@@ -17,117 +12,161 @@ on:
         required: false
         default: 'confs'
 
-  
+env:
+  # Общие переменные для простого мерж-скрипта
+  MY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITVERSE_TOKEN: ${{ secrets.GITVERSE_TOKEN }}
+  CLOUD_RU_SECRET_KEY: ${{ secrets.CLOUD_RU_SECRET_KEY }}
+  OUTPUT_DIR: ${{ github.event.inputs.folder_name || 'confs' }}
+
+  # Переменные для Xray-проверки (vless_checker.py и speedtest_checker.py)
+  MODE: merge
+  LINKS_FILE: links.txt
+  OUTPUT_FILE: available
+  OUTPUT_ADD_DATE: 'false'
+  MAX_WORKERS: 600
+  EXPORT_FORMAT: txt
+  ENABLE_CACHE: 'false'
+  TEST_URLS: http://www.google.com/generate_204,http://www.cloudflare.com/cdn-cgi/trace
+  TEST_URLS_HTTPS: https://www.gstatic.com/generate_204
+  REQUIRE_HTTPS: 'true'
+  STRONG_STYLE_TEST: 'true'
+  STRONG_STYLE_TIMEOUT: 12
+  STRONG_MAX_RESPONSE_TIME: 3
+  STRONG_DOUBLE_CHECK: 'true'
+  STRONG_ATTEMPTS: 3
+  REQUESTS_PER_URL: 2
+  MIN_SUCCESSFUL_REQUESTS: 2
+  MIN_SUCCESSFUL_URLS: 2
+  REQUEST_DELAY: 0.1
+  CONNECT_TIMEOUT: 6
+  CONNECT_TIMEOUT_SLOW: 15
+  USE_ADAPTIVE_TIMEOUT: 'false'
+  MAX_RETRIES: 1
+  MAX_RESPONSE_TIME: 6
+  MIN_RESPONSE_SIZE: 0
+  MAX_LATENCY_MS: 2000
+  VERIFY_HTTPS_SSL: 'false'
+  STABILITY_CHECKS: 2
+  STABILITY_CHECK_DELAY: 2.0
+  STRICT_MODE: 'true'
+  STRICT_MODE_REQUIRE_ALL: 'true'
+  TEST_POST_REQUESTS: 'false'
+
+  # Speedtest
+  SPEED_TEST_ENABLED: 'false'
+  SPEED_TEST_TIMEOUT: 2
+  SPEED_TEST_MODE: full
+  SPEED_TEST_METRIC: latency
+  SPEED_TEST_OUTPUT: separate_file
+  SPEED_TEST_REQUESTS: 5
+  SPEED_TEST_URL: https://www.gstatic.com/generate_204
+  SPEED_TEST_WORKERS: 600
+  SPEED_TEST_DOWNLOAD_TIMEOUT: 30
+  SPEED_TEST_DOWNLOAD_URL_SMALL: https://speed.cloudflare.com/__down?bytes=250000
+  SPEED_TEST_DOWNLOAD_URL_MEDIUM: https://speed.cloudflare.com/__down?bytes=1000000
+  MIN_SPEED_THRESHOLD_MBPS: 1
+  SPEED_TEST_DEBUG: 'false'
+  XRAY_STARTUP_WAIT: 1.8
+  XRAY_STARTUP_POLL_INTERVAL: 0.2
+  BASE_PORT: 20000
 
 jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    
     permissions:
       contents: write
-    
+
     steps:
     - name: ⬇️ Checkout repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
+
     - name: 🐍 Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
         cache: 'pip'
-    
+
     - name: 📦 Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install PyGithub requests urllib3
-        pip install boto3
-    
+        pip install PyGithub requests urllib3 boto3 aiohttp tqdm pyyaml
+
     - name: 🚀 Run merge script
-      env:
-        MY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        OUTPUT_DIR: ${{ github.event.inputs.folder_name || 'confs' }}
-        GITVERSE_TOKEN:  ${{ secrets.GITVERSE_TOKEN }}
-        CLOUD_RU_SECRET_KEY: ${{ secrets.CLOUD_RU_SECRET_KEY }}
       run: |
         echo "🕐 Запуск скрипта..."
         echo "📁 Используемая папка: $OUTPUT_DIR"
-        python scripts/simple_merge.py
-    
+        python scripts/simple_merge.py   # предполагается, что скрипт лежит в scripts/
+
+    - name: 📄 Prepare links.txt from merged configs
+      run: |
+        cp "$OUTPUT_DIR/merged.txt" links.txt
+        echo "links.txt created with $(wc -l < links.txt) lines"
+
+    - name: 🔍 Run vless_checker (connectivity test)
+      run: python vless_checker.py
+
+    - name: ⚡ Run speedtest on configs/available
+      run: python speedtest_checker.py confs/available
+
+    - name: 🔁 Replace available with speedtest result
+      run: |
+        if [ -f "confs/available_st" ] && [ -s "confs/available_st" ]; then
+          mv "confs/available_st" "configs/available"
+          if [ -f "confs/available_st(top100)" ]; then
+            mv "confs/available_st(top100)" "confs/available(top100)"
+          else
+            head -n 100 "confs/available" > "confs/available(top100)"
+          fi
+          echo "✅ Speedtest results applied"
+        else
+          echo "⚠️ Speedtest produced no output, keeping original available"
+        fi
+
+    - name: 📌 Add checked files to git
+      run: |
+        git add confs/available confs/available(top100) configs/notworkers || true
+
     - name: 💾 Commit and push changes
-      env:
-        OUTPUT_DIR: ${{ github.event.inputs.folder_name || 'githubmirror' }}
       run: |
         echo "💾 Проверка изменений..."
-        
-        if [ -f "$OUTPUT_DIR/merged.txt" ]; then
-          CONFIG_COUNT=$(grep -c '^v[lm]ess://' "$OUTPUT_DIR/merged.txt" 2>/dev/null || echo "0")
-          echo "📊 Конфигов в merged.txt: $CONFIG_COUNT"
-        fi
-        
-        if [ -f "$OUTPUT_DIR/wl.txt" ]; then
-          WL_CONFIG_COUNT=$(grep -c '^v[lm]ess://' "$OUTPUT_DIR/wl.txt" 2>/dev/null || echo "0")
-          echo "🛡️ Конфигов в wl.txt: $WL_CONFIG_COUNT"
-        fi
-        
-        # Настройка git
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git config --local pull.rebase true
-        
-        # Динамически находим и добавляем файлы из папки
+
         if [ -d "$OUTPUT_DIR" ]; then
           echo "📁 Добавляем файлы из папки: $OUTPUT_DIR"
           git add "$OUTPUT_DIR"/*
         fi
-        
-        # Также добавляем README
         git add README.md
-        
-        # Проверяем, есть ли изменения
+
         if git diff --cached --quiet; then
           echo "🔄 Нет изменений для коммита"
           exit 0
         fi
-        
-        # Создаем коммит
+
         MOSCOW_TIME=$(TZ='Europe/Moscow' date '+%H:%M | %d.%m.%Y')
         git commit -m "🤖 Авто-обновление: $MOSCOW_TIME"
-        
-        # Пытаемся обновить локальный репозиторий
+
         echo "🔄 Синхронизируем с удаленным репозиторием..."
-        
-        # Вариант 1: Пытаемся сделать pull с rebase
-        if git pull --rebase origin main; then
-          echo "✅ Rebase успешен"
-        else
-          echo "⚠️ Rebase не удался, отменяем и применяем стратегию слияния"
-          git rebase --abort
-          git pull origin main --strategy-option ours
-        fi
-        
-        # Пытаемся сделать push
+        git pull --rebase origin main || (git rebase --abort && git pull origin main --strategy-option ours)
+
         echo "📤 Отправляем изменения..."
         MAX_RETRIES=3
         RETRY_DELAY=10
-        
         for i in $(seq 1 $MAX_RETRIES); do
           echo "Попытка $i из $MAX_RETRIES..."
-          
           if git push origin main; then
             echo "✅ Изменения успешно отправлены"
             break
           else
             echo "❌ Ошибка при отправке, попытка $i не удалась"
-            
             if [ $i -lt $MAX_RETRIES ]; then
-              echo "⏳ Ждем $RETRY_DELAY секунд перед следующей попыткой..."
+              echo "⏳ Ждем $RETRY_DELAY секунд..."
               sleep $RETRY_DELAY
-              
-              # Обновляем локальный репозиторий
-              echo "🔄 Обновляем локальный репозиторий..."
               git pull origin main --rebase
             else
               echo "💥 Все попытки отправки не удались"
