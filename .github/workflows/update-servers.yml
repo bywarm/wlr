@@ -128,7 +128,7 @@ jobs:
 
     - name: 📌 Add checked files to git
       run: |
-        git add confs/available confs/available(top100) confs/notworkers || true
+        git add confs/available "confs/available(top100)" confs/notworkers || true
 
     - name: 💾 Commit and push changes
       run: |
