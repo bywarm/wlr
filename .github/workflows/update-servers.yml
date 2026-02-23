@@ -112,13 +112,17 @@ jobs:
         head -n 10 links.txt
         echo "=== Количество строк с 'vless://': $(grep -c 'vless://' links.txt || true)"
         echo "=== Первые 5 строк с 'vless://' ==="
-        grep 'vless://' links.txt | head -n 5
+        grep 'vless://' links.txt | head -n 5 || true
 
-    - name: 📄 Create raw links (without fragment)
+    - name: 📄 Prepare raw links for checker (without fragment)
       run: |
-        # Извлекаем только часть до # и убираем пустые строки
-        sed 's/#.*//' clean_links.txt | sed '/^$/d' > raw_links.txt
+        # Извлекаем строки с протоколами и удаляем фрагмент после #
+        grep -E '^(vless|vmess|trojan|ss|ssr|tuic|hysteria)://' links.txt | sed 's/#.*//' | sed '/^$/d' > raw_links.txt
         echo "Сырых ссылок: $(wc -l < raw_links.txt)"
+        if [ ! -s raw_links.txt ]; then
+          echo "❌ Нет валидных ссылок после фильтрации!"
+          exit 1
+        fi
         echo "Пример первых двух сырых ссылок:"
         head -n 2 raw_links.txt
 
@@ -126,19 +130,6 @@ jobs:
       env:
         LINKS_FILE: raw_links.txt
       run: python -u vless_checker.py
-    - name: 🔍 Speedtest
-      run: |
-        if [ -f "confs/available_st" ] && [ -s "confs/available_st" ]; then
-          mv "confs/available_st" "confs/available"
-          if [ -f "confs/available_st(top100)" ]; then
-            mv "confs/available_st(top100)" "confs/available(top100)"
-          else
-            head -n 100 "confs/available" > "confs/available(top100)"
-          fi
-          echo "✅ Speedtest results applied"
-        else
-          echo "⚠️ Speedtest produced no output, keeping original available"
-        fi
 
     - name: 📌 Add checked files to git
       run: |
