@@ -1,4 +1,4 @@
-name: Update Configs Hourly
+name: Update confs Hourly
 
 on:
   schedule:
@@ -101,7 +101,7 @@ jobs:
         echo "📁 Используемая папка: $OUTPUT_DIR"
         python scripts/simple_merge.py   # предполагается, что скрипт лежит в scripts/
 
-    - name: 📄 Prepare links.txt from merged configs
+    - name: 📄 Prepare links.txt from merged confs
       run: |
         cp "$OUTPUT_DIR/merged.txt" links.txt
         echo "links.txt created with $(wc -l < links.txt) lines"
@@ -109,13 +109,13 @@ jobs:
     - name: 🔍 Run vless_checker (connectivity test)
       run: python vless_checker.py
 
-    - name: ⚡ Run speedtest on configs/available
+    - name: ⚡ Run speedtest on confs/available
       run: python speedtest_checker.py confs/available
 
     - name: 🔁 Replace available with speedtest result
       run: |
         if [ -f "confs/available_st" ] && [ -s "confs/available_st" ]; then
-          mv "confs/available_st" "configs/available"
+          mv "confs/available_st" "confs/available"
           if [ -f "confs/available_st(top100)" ]; then
             mv "confs/available_st(top100)" "confs/available(top100)"
           else
@@ -128,7 +128,7 @@ jobs:
 
     - name: 📌 Add checked files to git
       run: |
-        git add confs/available confs/available(top100) configs/notworkers || true
+        git add confs/available confs/available(top100) confs/notworkers || true
 
     - name: 💾 Commit and push changes
       run: |
