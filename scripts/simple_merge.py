@@ -787,79 +787,74 @@ def save_to_file(configs: list[str], file_type: str, description: str = "", add_
         log(f"Ошибка сохранения {filename}: {str(e)}")
 
 def upload_to_github(filename: str, remote_path: str = None, branch: str = "main"):
-    if not REPO:
-        log("Пропускаю загрузку на GitHub (нет подключения)")
+    """
+    Загружает файл на GitHub через прямой REST API, используя base64.
+    """
+    if not GITHUB_TOKEN:
+        log("❌ GITHUB_TOKEN не задан, пропускаю загрузку на GitHub")
         return
 
     if not os.path.exists(filename):
-        log(f"Файл {filename} не найден для загрузки")
+        log(f"❌ Файл {filename} не найден для загрузки")
         return
 
+    # Определяем путь в репозитории
+    if remote_path is None:
+        remote_path = os.path.basename(filename)
+
+    # Читаем файл как бинарные данные
+    with open(filename, "rb") as f:
+        content_bytes = f.read()
+
+    # Кодируем в base64 (стандарт GitHub API)
+    content_b64 = base64.b64encode(content_bytes).decode('ascii')
+
+    # Формируем URL для API
+    repo_full_name = REPO.full_name if REPO else REPO_NAME
+    url = f"https://api.github.com/repos/{repo_full_name}/contents/{remote_path}"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    params = {"ref": branch}
+
+    # Проверяем, существует ли уже файл, чтобы получить SHA
+    sha = None
     try:
-        # Читаем файл как бинарные данные
-        with open(filename, "rb") as f:
-            binary_content = f.read()
-
-        # Декодируем в UTF-8 с заменой ошибок
-        content = binary_content.decode('utf-8', errors='replace')
-
-        # Удаляем все управляющие символы, кроме табуляции, перевода строки и возврата каретки
-        import unicodedata
-        cleaned = []
-        for ch in content:
-            cat = unicodedata.category(ch)
-            # Оставляем обычные символы (категория не 'C' – не управляющие) и разрешённые управляющие
-            if cat[0] != 'C' or ch in '\n\r\t':
-                cleaned.append(ch)
-        content = ''.join(cleaned)
-
-        # Проверяем, можно ли сериализовать в JSON
-        import json
-        try:
-            json.dumps(content)
-        except Exception as e:
-            log(f"Ошибка JSON после очистки: {e}, применяем жёсткую очистку (только ASCII)")
-            # Удаляем все символы, не входящие в печатный ASCII
-            content = content.encode('ascii', errors='ignore').decode('ascii')
-
-        if remote_path is None:
-            remote_path = filename
-
-        try:
-            file_in_repo = REPO.get_contents(remote_path, ref=branch)
-            current_sha = file_in_repo.sha
-
-            remote_content = file_in_repo.decoded_content.decode("utf-8", errors="replace")
-            if remote_content == content:
-                log(f"Файл {remote_path} не изменился в ветке {branch}")
-                return
-
-            REPO.update_file(
-                path=remote_path,
-                message="🤖 Авто-обновление: " + offset,
-                content=content,
-                sha=current_sha,
-                branch=branch
-            )
-            log(f"⬆️ Файл {remote_path} обновлён на GitHub в ветке {branch}")
-
-        except GithubException as e:
-            if e.status == 404:
-                REPO.create_file(
-                    path=remote_path,
-                    message="🤖 Первое создание: " + offset,
-                    content=content,
-                    branch=branch
-                )
-                log(f"🆕 Файл {remote_path} создан на GitHub в ветке {branch}")
-            else:
-                error_msg = e.data.get('message', str(e))
-                log("Ошибка GitHub: " + error_msg)
-                if hasattr(e, 'data'):
-                    log(f"Данные ошибки: {e.data}")
-
+        get_resp = requests.get(url, headers=headers, params=params, timeout=15)
+        if get_resp.status_code == 200:
+            sha = get_resp.json().get("sha")
+            log(f"📄 Файл {remote_path} существует, SHA: {sha[:8]}...")
+        elif get_resp.status_code != 404:
+            log(f"⚠️ Неожиданный ответ при проверке файла {remote_path}: {get_resp.status_code}")
+            log(get_resp.text[:200])
     except Exception as e:
-        log("Ошибка при загрузке на GitHub: " + str(e))
+        log(f"⚠️ Ошибка при проверке файла: {str(e)[:100]}")
+
+    # Подготавливаем данные для PUT
+    data = {
+        "message": f"🤖 Авто-обновление: {offset}",
+        "content": content_b64,
+        "branch": branch
+    }
+    if sha:
+        data["sha"] = sha
+
+    # Отправляем запрос на создание/обновление
+    try:
+        put_resp = requests.put(url, headers=headers, json=data, timeout=30)
+        if put_resp.status_code in [200, 201]:
+            log(f"✅ Файл {remote_path} успешно загружен на GitHub")
+        else:
+            log(f"❌ Ошибка {put_resp.status_code} при загрузке {remote_path}:")
+            # Пытаемся получить детали ошибки
+            try:
+                error_json = put_resp.json()
+                log(json.dumps(error_json, indent=2)[:500])
+            except:
+                log(put_resp.text[:500])
+    except Exception as e:
+        log(f"❌ Исключение при PUT-запросе: {str(e)[:200]}")
 
 def update_readme(total_configs: int, wl_configs_count: int):
     if not REPO:
