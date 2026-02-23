@@ -790,12 +790,17 @@ def upload_to_github(filename: str, remote_path: str = None, branch: str = "main
     if not REPO:
         log("Пропускаю загрузку на GitHub (нет подключения)")
         return
+    
     if not os.path.exists(filename):
-        log(f"Файл {filename} не найден")
+        log(f"Файл {filename} не найден для загрузки")
         return
+    
     try:
+        # Читаем файл как бинарные данные
         with open(filename, "rb") as f:
             binary_content = f.read()
+        
+        # Пытаемся декодировать в строку
         try:
             content = binary_content.decode("utf-8")
         except UnicodeDecodeError:
@@ -806,25 +811,51 @@ def upload_to_github(filename: str, remote_path: str = None, branch: str = "main
                     content = binary_content.decode("cp1251")
                 except UnicodeDecodeError:
                     content = binary_content.decode("utf-8", errors="replace")
+        
+        # Удаляем управляющие символы (кроме табуляции, перевода строки и возврата каретки)
+        import re
+        content = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', content)
+        
+        # Принудительно преобразуем в чистый UTF-8 (убирает возможные суррогатные пары)
+        content = content.encode('utf-8', errors='replace').decode('utf-8')
+        
         if remote_path is None:
             remote_path = filename
+        
         try:
             file_in_repo = REPO.get_contents(remote_path, ref=branch)
             current_sha = file_in_repo.sha
+            
             remote_content = file_in_repo.decoded_content.decode("utf-8", errors="replace")
             if remote_content == content:
                 log(f"Файл {remote_path} не изменился в ветке {branch}")
                 return
-            REPO.update_file(path=remote_path, message="🤖 Авто-обновление: " + offset,
-                             content=content, sha=current_sha, branch=branch)
+            
+            REPO.update_file(
+                path=remote_path,
+                message="🤖 Авто-обновление: " + offset,
+                content=content,
+                sha=current_sha,
+                branch=branch
+            )
             log(f"⬆️ Файл {remote_path} обновлён на GitHub в ветке {branch}")
+            
         except GithubException as e:
             if e.status == 404:
-                REPO.create_file(path=remote_path, message="🤖 Первое создание: " + offset,
-                                 content=content, branch=branch)
+                REPO.create_file(
+                    path=remote_path,
+                    message="🤖 Первое создание: " + offset,
+                    content=content,
+                    branch=branch
+                )
                 log(f"🆕 Файл {remote_path} создан на GitHub в ветке {branch}")
             else:
-                log("Ошибка GitHub: " + e.data.get('message', str(e)))
+                error_msg = e.data.get('message', str(e))
+                log("Ошибка GitHub: " + error_msg)
+                # Дополнительная диагностика
+                if hasattr(e, 'data'):
+                    log(f"Данные ошибки: {e.data}")
+    
     except Exception as e:
         log("Ошибка при загрузке на GitHub: " + str(e))
 
