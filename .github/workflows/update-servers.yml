@@ -101,46 +101,21 @@ jobs:
         echo "📁 Используемая папка: $OUTPUT_DIR"
         python scripts/simple_merge.py   # предполагается, что скрипт лежит в scripts/
 
-    - name: 📄 Prepare links.txt from merged configs
+    - name: 📄 Verify merged.txt exists
       run: |
-        cp "$OUTPUT_DIR/merged.txt" links.txt
-        echo "links.txt created with $(wc -l < links.txt) lines"
-
-    - name: 📄 Debug links.txt content
-      run: |
-        echo "=== Первые 10 строк links.txt ==="
-        head -n 10 links.txt
-        echo "=== Количество строк с 'vless://': $(grep -c 'vless://' links.txt || true)"
-        echo "=== Первые 5 строк с 'vless://' ==="
-        grep 'vless://' links.txt | head -n 5 || true
-
-    - name: 📄 Prepare raw links for checker (without fragment)
-      run: |
-        # Извлекаем строки с протоколами и удаляем фрагмент после #
-        grep -E '^(vless|vmess|trojan|ss|ssr|tuic|hysteria)://' links.txt | sed 's/#.*//' | sed '/^$/d' > raw_links.txt
-        echo "Сырых ссылок: $(wc -l < raw_links.txt)"
-        if [ ! -s raw_links.txt ]; then
-          echo "❌ Нет валидных ссылок после фильтрации!"
+        if [ ! -f "$OUTPUT_DIR/merged.txt" ]; then
+          echo "❌ merged.txt not found!"
           exit 1
         fi
-        echo "Пример первых двух сырых ссылок:"
-        head -n 2 raw_links.txt
-    - name: 📄 Create clean links (with fragment)
-      run: |
-        grep -E '^(vless|vmess|trojan|ss|ssr|tuic|hysteria)://' links.txt > clean_links.txt
-        echo "Чистых ссылок (с фрагментом): $(wc -l < clean_links.txt)"
+        echo "merged.txt готов, строк: $(wc -l < $OUTPUT_DIR/merged.txt)"
+        echo "Первые 5 строк merged.txt:"
+        head -n 5 "$OUTPUT_DIR/merged.txt"
 
-    - name: 🔍 Hexdump raw_links.txt
-      run: |
-        echo "=== raw_links.txt first 3 lines hex ==="
-        head -n 3 raw_links.txt | hexdump -C
-        echo "=== clean_links.txt first 3 lines hex ==="
-        head -n 3 clean_links.txt | hexdump -C
-
-    - name: 🔍 Run vless_checker on clean links (with fragment)
+    - name: 🔍 Run vless_checker on merged.txt (single mode)
       env:
-        LINKS_FILE: merged.txt
-      run: python -u vless_checker.py
+        MODE: single   # переопределяем режим
+        # Другие переменные для vless_checker берутся из глобальных env
+      run: python vless_checker.py "$OUTPUT_DIR/merged.txt"
 
     - name: 📌 Add checked files to git
       run: |
