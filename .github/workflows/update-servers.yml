@@ -106,13 +106,11 @@ jobs:
         cp "$OUTPUT_DIR/merged.txt" links.txt
         echo "links.txt created with $(wc -l < links.txt) lines"
         
-    - name: Debug merged.txt content
+    - name: Debug merged.txt content (hex)
       run: |
-        echo "=== merged.txt first 200 chars ==="
-        head -c 200 confs/merged.txt | cat -v
+        echo "=== merged.txt first 200 bytes (hex) ==="
+        head -c 200 confs/merged.txt | hexdump -C
         echo "=== end ==="
-        - name: ⚡ Run speedtest on confs/available
-          run: python speedtest_checker.py confs/available
         
     - name: 🔁 Replace available with speedtest result
       run: |
