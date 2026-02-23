@@ -139,7 +139,7 @@ jobs:
 
     - name: 🔍 Run vless_checker on clean links (with fragment)
       env:
-        LINKS_FILE: clean_links.txt
+        LINKS_FILE: merged.txt
       run: python -u vless_checker.py
 
     - name: 📌 Add checked files to git
