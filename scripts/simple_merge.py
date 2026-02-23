@@ -18,7 +18,6 @@ import ipaddress
 import zoneinfo
 import requests
 import urllib3
-import calendar
 import base64
 import json
 import re
@@ -49,19 +48,13 @@ CLOUD_RU_REGION = os.environ.get("CLOUD_RU_REGION", "ru-central-1")
 # GitVerse API конфигурация (только токен в секретах)
 GITVERSE_TOKEN = os.environ.get("GITVERSE_TOKEN", "")
 
-# Остальные параметры GitVerse заданы явно в коде
 if GITVERSE_TOKEN:
-    # Настройки по умолчанию - замените на ваши
-    GITVERSE_ENDPOINT = "https://api.gitverse.ru"  # Основной endpoint согласно документации
-    GITVERSE_REPO_OWNER = "bywarm"  # ВАШ логин на GitVerse
-    GITVERSE_REPO_NAME = "rser"  # ВАШ репозиторий
+    GITVERSE_ENDPOINT = "https://api.gitverse.ru"
+    GITVERSE_REPO_OWNER = "bywarm"
+    GITVERSE_REPO_NAME = "rser"
     GITVERSE_BRANCH = "master"
 else:
-    # Если токен не задан, параметры не важны
-    GITVERSE_ENDPOINT = ""
-    GITVERSE_REPO_OWNER = ""
-    GITVERSE_REPO_NAME = ""
-    GITVERSE_BRANCH = ""
+    GITVERSE_ENDPOINT = GITVERSE_REPO_OWNER = GITVERSE_REPO_NAME = GITVERSE_BRANCH = ""
 
 if GITHUB_TOKEN:
     g = Github(auth=Auth.Token(GITHUB_TOKEN))
@@ -73,7 +66,6 @@ try:
 except Exception as e:
     log("Ошибка подключения к GitHub: " + str(e)[:100])
     REPO = None
-
 
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "confs")
 
@@ -93,10 +85,8 @@ if CONFIG["rotate_folders"]:
     CONFIG["output_dir_suffix"] = f"_{year_short}{month:02d}"
 
 def get_paths():
-    """Возвращает актуальные пути к файлам"""
     base_dir = CONFIG["output_dir"]
-    
-    paths = {
+    return {
         "base_dir": base_dir,
         "merged": f"{base_dir}/{CONFIG['merged_file']}",
         "wl": f"{base_dir}/{CONFIG['wl_file']}",
@@ -104,7 +94,6 @@ def get_paths():
         "gh_pages_merged": "merged.txt",
         "gh_pages_wl": "wl.txt",
     }
-    return paths
 
 PATHS = get_paths()
 
@@ -117,11 +106,10 @@ EXCLUDE_PATTERNS = [
     "11111111-1111-1111-1111-111111111111",
 ]
 
-# Дополнительные настройки
 EXCLUDE_SETTINGS = {
-    "case_sensitive": False,  # Регистрозависимость
-    "log_excluded": True,     # Логировать исключенные конфиги
-    "save_excluded": True,    # Сохранять исключенные в отдельный файл
+    "case_sensitive": False,
+    "log_excluded": True,
+    "save_excluded": True,
 }
 
 CIDR_NAME_MAPPING = {
@@ -137,10 +125,10 @@ CIDR_NAME_MAPPING = {
     "78.159.0.0/16": "?",
     "78.159.247.0/24": "?",
     "79.174.91.0/24": "REG.RU",
-    "79.174.92.0/24": "?",
-    "79.174.93.0/24": "?",
-    "79.174.94.0/24": "?",
-    "79.174.95.0/24": "?",
+    "79.174.92.0/24": "REG.RU",
+    "79.174.93.0/24": "REG.RU",
+    "79.174.94.0/24": "REG.RU",
+    "79.174.95.0/24": "REG.RU",
     "83.166.0.0/16": "?",
     "84.201.0.0/16": "firstcolo GmbH",
     "84.201.128.0/18": "Yandex",
@@ -342,10 +330,8 @@ CIDR_NAME_MAPPING = {
     "185.175.44.0/22": "Selectel",
     "185.193.90.0/23": "Selectel",
 }
-# Список подсетей для проверки (объекты ip_network)
-WHITELIST_SUBNETS = list(CIDR_NAME_MAPPING.keys())
 
-# Для быстрой проверки создадим список сетей и параллельный список имён
+WHITELIST_SUBNETS = list(CIDR_NAME_MAPPING.keys())
 WHITELIST_NETWORKS = []
 WHITELIST_NAMES = []
 for subnet_str, name in CIDR_NAME_MAPPING.items():
@@ -356,6 +342,7 @@ for subnet_str, name in CIDR_NAME_MAPPING.items():
     except Exception as e:
         log(f"Ошибка в подсети {subnet_str}: {e}")
 
+# Список URL для парсинга
 URLS = [
     "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-checked.txt",
     "https://raw.githubusercontent.com/zieng2/wl/refs/heads/main/vless_universal.txt",
@@ -371,15 +358,13 @@ URLS = [
     "https://raw.githubusercontent.com/EtoNeYaProject/etoneyaproject.github.io/refs/heads/main/whitelist",
     "https://raw.githubusercontent.com/gbwltg/gbwl/refs/heads/main/m3EsPqwmlc",
     "https://gitverse.ru/api/repos/LowiK/LowiKLive/raw/branch/main/ObhodBSfree.txt",
-    "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-checked.txt",
     "https://raw.githubusercontent.com/bywarm/wlr/refs/heads/main/test.txt",
 ]
 
-# Словарь маркеров благодарности: ключ - подстрока для поиска в конфиге, значение - текст благодарности
+# Словарь маркеров благодарности
 THANKS_MARKERS = {
-    '@YoutubeUnBlockRu': '@YoutubeUnBlockRu',  # для конфигов, уже содержащих этот тег
-    'gbwl': '@gbwl',                            # для конфигов, содержащих "gbwl" (например, от gbwltg)
-    # можно добавить другие маркеры по необходимости
+    '@YoutubeUnBlockRu': '@YoutubeUnBlockRu',
+    'gbwl': '@gbwl',
 }
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -412,12 +397,10 @@ def _build_session(max_pool_size: int) -> requests.Session:
 REQUESTS_SESSION = _build_session(max_pool_size=min(DEFAULT_MAX_WORKERS, len(URLS)))
 
 def fetch_url(url: str, timeout: int = 15, max_attempts: int = 3) -> str:
-    """Загружает данные с URL"""
     for attempt in range(1, max_attempts + 1):
         try:
             modified_url = url
             verify = True
-
             if attempt == 2:
                 verify = False
             elif attempt == 3:
@@ -425,28 +408,20 @@ def fetch_url(url: str, timeout: int = 15, max_attempts: int = 3) -> str:
                 if parsed.scheme == "https":
                     modified_url = parsed._replace(scheme="http").geturl()
                 verify = False
-
             response = REQUESTS_SESSION.get(modified_url, timeout=timeout, verify=verify)
             response.raise_for_status()
             return response.text
-
         except requests.exceptions.RequestException as exc:
-            last_exc = exc
             if attempt < max_attempts:
                 continue
-            error_msg = str(exc)
-            if len(error_msg) > 100:
-                error_msg = error_msg[:100]
+            error_msg = str(exc)[:100]
             log("Ошибка загрузки " + url + ": " + error_msg)
             return ""
-    
     return ""
 
 def extract_host_port(config: str) -> tuple[str, int] | None:
-    """Извлекает хост и порт из конфигурационной строки для дедупликации"""
     if not config:
         return None
-    
     try:
         if config.startswith("vmess://"):
             try:
@@ -454,70 +429,50 @@ def extract_host_port(config: str) -> tuple[str, int] | None:
                 rem = len(payload) % 4
                 if rem:
                     payload += '=' * (4 - rem)
-                
                 decoded = base64.b64decode(payload).decode('utf-8', errors='ignore')
-                
                 if decoded.startswith('{'):
                     j = json.loads(decoded)
                     host = j.get('add') or j.get('host') or j.get('ip')
                     port = j.get('port')
-                    
                     if host and port:
                         return str(host), int(port)
             except Exception:
                 pass
-        
         patterns = [
             r'@([\w\.-]+):(\d{1,5})',
             r'host=([\w\.-]+).*?port=(\d{1,5})',
             r'address=([\w\.-]+).*?port=(\d{1,5})',
             r'//([\w\.-]+):(\d{1,5})',
         ]
-        
         for pattern in patterns:
             match = re.search(pattern, config, re.IGNORECASE)
             if match:
-                host = match.group(1)
-                port = int(match.group(2))
-                return host, port
-        
+                return match.group(1), int(match.group(2))
         match = re.search(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d{1,5})', config)
         if match:
             return match.group(1), int(match.group(2))
-        
         match = re.search(r'([\w\.-]+):(\d{1,5})', config)
         if match:
             host = match.group(1)
             port = int(match.group(2))
             if len(host) > 1 and ('.' in host or host.replace('.', '').replace('-', '').isalnum()):
                 return host, port
-                
     except Exception:
         pass
-    
     return None
 
 def generate_config_key(config: str) -> str:
-    """Генерирует уникальный ключ для конфига на основе всех параметров"""
     if not config:
         return ""
-    
     try:
-        # Для VLESS
         if config.startswith("vless://"):
             parsed = urllib.parse.urlparse(config)
-            
-            # Извлекаем основные параметры
             username = parsed.username or ""
             host = parsed.hostname or ""
             port = parsed.port or 443
-            
-            # Парсим query параметры
             query_params = urllib.parse.parse_qs(parsed.query)
-            
-            # Собираем ключевые параметры для уникальности
             key_parts = [
-                username,  # UUID
+                username,
                 host,
                 str(port),
                 query_params.get('security', [''])[0],
@@ -529,45 +484,36 @@ def generate_config_key(config: str) -> str:
                 query_params.get('fp', [''])[0],
                 query_params.get('encryption', [''])[0],
             ]
-            
-            # Фильтруем пустые значения и объединяем
-            return "|".join([part for part in key_parts if part])
-        
-        # Для VMESS
+            return "|".join([p for p in key_parts if p])
         elif config.startswith("vmess://"):
             try:
                 payload = config[8:]
                 rem = len(payload) % 4
                 if rem:
                     payload += '=' * (4 - rem)
-                
                 decoded = base64.b64decode(payload).decode('utf-8', errors='ignore')
-                
                 if decoded.startswith('{'):
                     j = json.loads(decoded)
                     key_parts = [
-                        j.get('id', ''),  # UUID
-                        j.get('add', ''),  # Host
-                        str(j.get('port', '')),  # Port
-                        j.get('net', ''),  # Network type
-                        j.get('host', ''),  # Host header
-                        j.get('path', ''),  # Path
-                        j.get('tls', ''),  # TLS
-                        j.get('sni', ''),  # SNI
-                        j.get('type', ''),  # Type
-                        j.get('ps', ''),  # Remark/name
+                        j.get('id', ''),
+                        j.get('add', ''),
+                        str(j.get('port', '')),
+                        j.get('net', ''),
+                        j.get('host', ''),
+                        j.get('path', ''),
+                        j.get('tls', ''),
+                        j.get('sni', ''),
+                        j.get('type', ''),
+                        j.get('ps', ''),
                     ]
-                    return "|".join([part for part in key_parts if part])
+                    return "|".join([p for p in key_parts if p])
             except Exception:
                 pass
-        
-        # Для Trojan
         elif config.startswith("trojan://"):
             parsed = urllib.parse.urlparse(config)
-            username = parsed.username or ""  # Password for Trojan
+            username = parsed.username or ""
             host = parsed.hostname or ""
             port = parsed.port or 443
-            
             query_params = urllib.parse.parse_qs(parsed.query)
             key_parts = [
                 username,
@@ -579,21 +525,13 @@ def generate_config_key(config: str) -> str:
                 query_params.get('flow', [''])[0],
                 query_params.get('fp', [''])[0],
             ]
-            return "|".join([part for part in key_parts if part])
-        
-        # Для других протоколов используем полную строку как ключ
+            return "|".join([p for p in key_parts if p])
         else:
-            return config[:200]  # Используем начало конфига
-        
-    except Exception as e:
-        # В случае ошибки используем начало конфига
+            return config[:200]
+    except Exception:
         return config[:100]
-    
-    # Фолбэк
-    return config[:100]
 
 def is_ip_in_subnets(ip_str: str) -> bool:
-    """Проверяет, принадлежит ли IP-адрес одной из разрешенных подсетей (возвращает True/False)"""
     try:
         ip = ipaddress.ip_address(ip_str)
         if ip.version != 4:
@@ -606,7 +544,6 @@ def is_ip_in_subnets(ip_str: str) -> bool:
         return False
 
 def get_cidr_name(ip_str: str) -> str | None:
-    """Возвращает имя подсети для IP, если оно задано в CIDR_NAME_MAPPING, иначе None"""
     try:
         ip = ipaddress.ip_address(ip_str)
         if ip.version != 4:
@@ -619,20 +556,15 @@ def get_cidr_name(ip_str: str) -> str | None:
         return None
 
 def extract_sni(config: str) -> str:
-    """Извлекает SNI из конфига, если возможно"""
     if not config:
         return ""
-    
     try:
-        # VLESS, Trojan
         if config.startswith(("vless://", "trojan://")):
             parsed = urllib.parse.urlparse(config)
             query_params = urllib.parse.parse_qs(parsed.query)
             sni_list = query_params.get('sni', [])
             if sni_list:
                 return sni_list[0]
-        
-        # VMESS
         elif config.startswith("vmess://"):
             payload = config[8:]
             rem = len(payload) % 4
@@ -641,39 +573,28 @@ def extract_sni(config: str) -> str:
             decoded = base64.b64decode(payload).decode('utf-8', errors='ignore')
             if decoded.startswith('{'):
                 j = json.loads(decoded)
-                # Сначала ищем sni, потом host (часто используется как sni), потом add
                 sni = j.get('sni') or j.get('host') or j.get('add')
                 if sni:
                     return sni
-        
-        # Для простых строк вида host:port или протокол://host:port?params
-        # Попробуем извлечь хост и проверить, является ли он доменом
         host_port = extract_host_port(config)
         if host_port:
             host = host_port[0]
-            # Если хост не IP, вероятно это SNI
             try:
                 ipaddress.ip_address(host)
-                # это IP, не возвращаем как SNI (можно, но по примеру показан домен)
                 return ""
             except ValueError:
-                # это домен
                 return host
     except Exception:
         pass
-    
     return ""
 
 def download_and_process_url(url: str) -> list[str]:
-    """Загружает и обрабатывает конфиги с одного URL"""
     try:
         data = fetch_url(url)
         if not data:
             return []
-        
         data = re.sub(r'(vmess|vless|trojan|ss|ssr|tuic|hysteria|hysteria2)://', r'\n\1://', data)
         lines = data.splitlines()
-        
         configs = []
         for line in lines:
             line = line.strip()
@@ -684,26 +605,16 @@ def download_and_process_url(url: str) -> list[str]:
                     configs.append(line)
                 elif '@' in line and ':' in line and line.count(':') >= 2:
                     configs.append(line)
-        
-        try:
-            repo_name = url.split('/')[3] if '/' in url else 'unknown'
-        except:
-            repo_name = 'unknown'
+        repo_name = url.split('/')[3] if '/' in url else 'unknown'
         log("✅ " + repo_name + ": " + str(len(configs)) + " конфигов")
         return configs
-        
     except Exception as e:
-        error_msg = str(e)
-        if len(error_msg) > 100:
-            error_msg = error_msg[:100]
+        error_msg = str(e)[:100]
         log("Ошибка обработки " + url + ": " + error_msg)
         return []
-    
 
 def add_numbering_to_name(config: str, number: int, thanks_text: str = "", sni: str = "", cidr_text: str = "") -> str:
-    """Добавляет нумерацию, SNI, метку CIDR и вотермарк в поле name конфига."""
     try:
-        # Определяем протокол для заголовка
         proto = "CONFIG"
         if config.startswith("vmess://"):
             proto = "VMESS"
@@ -721,8 +632,7 @@ def add_numbering_to_name(config: str, number: int, thanks_text: str = "", sni: 
             proto = "HYSTERIA"
         elif config.startswith("hysteria2://"):
             proto = "HYSTERIA2"
-        
-        # Извлекаем флаг из существующего имени, если есть
+
         flag = ""
         if '#' in config:
             fragment = config.split('#', 1)[1]
@@ -732,8 +642,7 @@ def add_numbering_to_name(config: str, number: int, thanks_text: str = "", sni: 
             flag_match = re.search(r'[\U0001F1E6-\U0001F1FF]{2}', config)
         if flag_match:
             flag = flag_match.group(0) + " "
-        
-        # Формируем базовое имя
+
         base_parts = [f"{number}. {flag}{proto}"]
         if sni:
             base_parts.append(f"SNI: {sni}")
@@ -742,19 +651,15 @@ def add_numbering_to_name(config: str, number: int, thanks_text: str = "", sni: 
         base_parts.append("TG: @wlrustg")
         if thanks_text:
             base_parts.append(f"Thanks: {thanks_text}")
-        
         new_name = " | ".join(base_parts)
-        
-        # Теперь вставляем это имя в конфиг в зависимости от типа
+
         if config.startswith("vmess://"):
             try:
                 payload = config[8:]
                 rem = len(payload) % 4
                 if rem:
                     payload += '=' * (4 - rem)
-                
                 decoded = base64.b64decode(payload).decode('utf-8', errors='ignore')
-                
                 if decoded.startswith('{'):
                     j = json.loads(decoded)
                     j['ps'] = new_name
@@ -764,70 +669,44 @@ def add_numbering_to_name(config: str, number: int, thanks_text: str = "", sni: 
             except Exception:
                 pass
             return config
-            
         elif config.startswith(("vless://", "trojan://", "ss://", "ssr://", "tuic://", "hysteria://", "hysteria2://")):
-            # Для URL-протоколов заменяем или добавляем фрагмент
-            if '#' in config:
-                base_part = config.rsplit('#', 1)[0]
-            else:
-                base_part = config
+            base_part = config.rsplit('#', 1)[0] if '#' in config else config
             new_fragment = urllib.parse.quote(new_name, safe='')
             return f"{base_part}#{new_fragment}"
-            
         else:
-            # Для других форматов (например, IP:port) просто добавляем # с именем
-            if '#' in config:
-                base_part = config.rsplit('#', 1)[0]
-            else:
-                base_part = config
+            base_part = config.rsplit('#', 1)[0] if '#' in config else config
             new_fragment = urllib.parse.quote(new_name, safe='')
             return f"{base_part}#{new_fragment}"
-                
     except Exception as e:
-        log(f"Ошибка добавления нумерации к конфигу: {str(e)[:100]}")
+        log(f"Ошибка добавления нумерации: {str(e)[:100]}")
         return config
 
-
 def extract_existing_info(config: str) -> tuple:
-    """Извлекает существующие информацию из конфига: номер, флаг, вотермарк"""
     config_clean = config.strip()
-    
     number_match = re.search(r'(?:#?\s*)(\d{1,3})(?:\.|\s+|$)', config_clean)
     number = number_match.group(1) if number_match else None
-    
     flag_match = re.search(r'[\U0001F1E6-\U0001F1FF]{2}', config_clean)
     flag = flag_match.group(0) if flag_match else ""
-    
     tg_match = re.search(r'TG\s*:\s*@wlrustg', config_clean, re.IGNORECASE)
     tg = tg_match.group(0) if tg_match else ""
-    
     return number, flag, tg
 
-
 def process_configs_with_numbering(configs: list[str]) -> list[str]:
-    """Добавляет нумерацию, SNI, метку CIDR и вотермарк в поле name конфигов."""
     processed_configs = []
-    
     for i, config in enumerate(configs, 1):
-        existing_number, _, existing_tg = extract_existing_info(config)
-        
-        # Определяем, есть ли в конфиге маркеры благодарности
+        existing_number, _, _ = extract_existing_info(config)
         thanks_text = ""
         for marker, thanks in THANKS_MARKERS.items():
             if marker in config:
                 thanks_text = thanks
-                break  # берём первый найденный
-        
-        # Извлекаем SNI
+                break
         sni = extract_sni(config)
-        
-        # Определяем, является ли конфиг CIDR (IP в белых подсетях) и получаем имя подсети
         cidr_text = ""
         host_port = extract_host_port(config)
         if host_port:
             host = host_port[0]
             try:
-                ipaddress.ip_address(host)  # проверяем, что это IP
+                ipaddress.ip_address(host)
                 if is_ip_in_subnets(host):
                     name = get_cidr_name(host)
                     if name:
@@ -835,56 +714,36 @@ def process_configs_with_numbering(configs: list[str]) -> list[str]:
                     else:
                         cidr_text = "CIDR"
             except ValueError:
-                # это домен, не CIDR
                 pass
-        
-        # Если уже есть номер и наш вотермарк, не меняем
         if existing_number and "TG: @wlrustg" in config:
             processed_configs.append(config)
         else:
-            # Добавляем нумерацию с новыми параметрами
-            processed = add_numbering_to_name(config, i, thanks_text=thanks_text, sni=sni, cidr_text=cidr_text)
-            processed_configs.append(processed)
-    
+            processed_configs.append(add_numbering_to_name(config, i, thanks_text, sni, cidr_text))
     return processed_configs
 
-
 def prioritize_configs(configs: list[str]) -> list[str]:
-    """
-    Сортирует конфиги так, чтобы конфиги с '@YoutubeUnBlockRu' были в начале.
-    Это даёт им приоритет при дедупликации.
-    """
     return sorted(configs, key=lambda c: '@YoutubeUnBlockRu' not in c)
 
-
 def merge_and_deduplicate(all_configs: list[str]) -> tuple[list[str], list[str]]:
-    """Объединяет и дедуплицирует конфиги, возвращает два списка: все конфиги и whitelist конфиги"""
     if not all_configs:
         return [], []
-    
     seen_full = set()
-    seen_config_keys = set()  # Уникальные ключи конфигов (по параметрам)
+    seen_config_keys = set()
     unique_configs = []
     whitelist_configs = []
     duplicate_count = 0
-    
     for config in all_configs:
         config = config.strip()
         if not config or config in seen_full:
             duplicate_count += 1
             continue
         seen_full.add(config)
-        
-        # Генерируем уникальный ключ конфига на основе его параметров
         config_key = generate_config_key(config)
         if config_key and config_key in seen_config_keys:
             duplicate_count += 1
             continue
         seen_config_keys.add(config_key)
-        
         unique_configs.append(config)
-        
-        # Проверка на whitelist (по IP)
         host_port = extract_host_port(config)
         if host_port:
             host = host_port[0]
@@ -894,14 +753,11 @@ def merge_and_deduplicate(all_configs: list[str]) -> tuple[list[str], list[str]]
                     whitelist_configs.append(config)
             except ValueError:
                 pass
-    
     if duplicate_count > 0:
-        log(f"🔍 Удалено {duplicate_count} дубликатов (полных или по параметрам)")
-    
+        log(f"🔍 Удалено {duplicate_count} дубликатов")
     return unique_configs, whitelist_configs
 
 def save_to_file(configs: list[str], file_type: str, description: str = "", add_numbering: bool = False):
-    """Сохраняет конфиги в файл с динамическим именем"""
     if file_type == "merged":
         filepath = PATHS["merged"]
         filename = os.path.basename(filepath)
@@ -909,583 +765,322 @@ def save_to_file(configs: list[str], file_type: str, description: str = "", add_
         filepath = PATHS["wl"]
         filename = os.path.basename(filepath)
     else:
-        filepath = file_type  # Прямой путь
+        filepath = file_type
         filename = os.path.basename(filepath)
-    
     try:
         os.makedirs(PATHS["base_dir"], exist_ok=True)
-        
         with open(filepath, "w", encoding="utf-8", errors="replace") as f:
             if 'Whitelist' in description:
-               f.write("#profile-title: WL RUS (wl.txt)\n")
+                f.write("#profile-title: WL RUS (wl.txt)\n")
             else:
-               f.write("#profile-title: WL RUS (all)\n")
-        
-        
+                f.write("#profile-title: WL RUS (all)\n")
             f.write("#profile-update-interval: 24\n")
             f.write("#announce: Сервера из подписки должны использоваться ТОЛЬКО при белых списках!\n")
             f.write(f"# Обновлено: {offset}\n")
             f.write(f"# Всего конфигов: {len(configs)}\n")
             f.write("#" * 50 + "\n\n")
-            
-            # Обработка конфигов
-            if add_numbering:
-                processed_configs = process_configs_with_numbering(configs)
-            else:
-                processed_configs = configs
-            
-            for config in processed_configs:
-                f.write(config + "\n")
-        
+            processed = process_configs_with_numbering(configs) if add_numbering else configs
+            for cfg in processed:
+                f.write(cfg + "\n")
         log(f"💾 Сохранено {len(configs)} конфигов в {filename}")
-        
     except Exception as e:
-        log(f"Ошибка сохранения файла {filename}: {str(e)}")
+        log(f"Ошибка сохранения {filename}: {str(e)}")
 
 def upload_to_github(filename: str, remote_path: str = None, branch: str = "main"):
-    """Загружает файл на GitHub в указанную ветку"""
     if not REPO:
         log("Пропускаю загрузку на GitHub (нет подключения)")
         return
-    
     if not os.path.exists(filename):
-        log(f"Файл {filename} не найден для загрузки")
+        log(f"Файл {filename} не найден")
         return
-    
     try:
-        # Читаем файл в бинарном режиме, затем декодируем
         with open(filename, "rb") as f:
             binary_content = f.read()
-        
-        # Декодируем содержимое с обработкой ошибок
         try:
             content = binary_content.decode("utf-8")
         except UnicodeDecodeError:
-            # Если не удается декодировать как UTF-8, пробуем другие кодировки
-            log(f"⚠️  Ошибка декодирования UTF-8 в файле {filename}, пробую другие кодировки...")
             try:
-                content = binary_content.decode("utf-8-sig")  # UTF-8 с BOM
+                content = binary_content.decode("utf-8-sig")
             except UnicodeDecodeError:
                 try:
-                    content = binary_content.decode("cp1251")  # Windows-1251
+                    content = binary_content.decode("cp1251")
                 except UnicodeDecodeError:
-                    try:
-                        content = binary_content.decode("latin-1")  # Latin-1
-                    except UnicodeDecodeError:
-                        # В крайнем случае игнорируем ошибки
-                        content = binary_content.decode("utf-8", errors="replace")
-                        log(f"⚠️  Использована замена некорректных символов в файле {filename}")
-        
+                    content = binary_content.decode("utf-8", errors="replace")
         if remote_path is None:
             remote_path = filename
-        
         try:
             file_in_repo = REPO.get_contents(remote_path, ref=branch)
             current_sha = file_in_repo.sha
-            
             remote_content = file_in_repo.decoded_content.decode("utf-8", errors="replace")
             if remote_content == content:
                 log(f"Файл {remote_path} не изменился в ветке {branch}")
                 return
-            
-            REPO.update_file(
-                path=remote_path,
-                message="🤖 Авто-обновление: " + offset,
-                content=content,
-                sha=current_sha,
-                branch=branch
-            )
+            REPO.update_file(path=remote_path, message="🤖 Авто-обновление: " + offset,
+                             content=content, sha=current_sha, branch=branch)
             log(f"⬆️ Файл {remote_path} обновлён на GitHub в ветке {branch}")
-            
         except GithubException as e:
             if e.status == 404:
-                REPO.create_file(
-                    path=remote_path,
-                    message="🤖 Первое создание: " + offset,
-                    content=content,
-                    branch=branch
-                )
+                REPO.create_file(path=remote_path, message="🤖 Первое создание: " + offset,
+                                 content=content, branch=branch)
                 log(f"🆕 Файл {remote_path} создан на GitHub в ветке {branch}")
             else:
-                error_msg = e.data.get('message', str(e))
-                log("Ошибка GitHub: " + error_msg)
-                
+                log("Ошибка GitHub: " + e.data.get('message', str(e)))
     except Exception as e:
         log("Ошибка при загрузке на GitHub: " + str(e))
 
 def update_readme(total_configs: int, wl_configs_count: int):
-    """Обновляет README.md со статистикой"""
     if not REPO:
         log("Пропускаю обновление README (нет подключения)")
         return
-    
     try:
         try:
             readme_file = REPO.get_contents("README.md")
             old_content = readme_file.decoded_content.decode("utf-8")
         except GithubException:
             old_content = "# Объединенные конфиги VPN\n\n"
-        
-        # Формируем ссылки на файлы
-        raw_url_merged = "https://github.com/" + REPO_NAME + "/raw/main/merged.txt"
-        raw_url_wl = "https://github.com/" + REPO_NAME + "/raw/main/githubmirror/wl.txt"
-        raw_url_selected = "https://github.com/" + REPO_NAME + "/raw/main/githubmirror/selected.txt"
-        
-        # Разделяем время и дату
+        raw_url_merged = f"https://github.com/{REPO_NAME}/raw/main/merged.txt"
+        raw_url_wl = f"https://github.com/{REPO_NAME}/raw/main/githubmirror/wl.txt"
+        raw_url_selected = f"https://github.com/{REPO_NAME}/raw/main/githubmirror/selected.txt"
         time_parts = offset.split(" | ")
         time_part = time_parts[0] if len(time_parts) > 0 else ""
         date_part = time_parts[1] if len(time_parts) > 1 else ""
-        
-        new_section = "\n## 📊 Статус обновления\n\n"
-        new_section += "| Файл | Описание | Конфигов | Время обновления | Дата |\n"
-        new_section += "|------|----------|----------|------------------|------|\n"
-        new_section += f"| [`merged.txt`]({raw_url_merged}) | Все конфиги из {len(URLS)} источников | {total_configs} | {time_part} | {date_part} |\n"
-        new_section += f"| [`wl.txt`]({raw_url_wl}) | Только конфиги из {len(WHITELIST_SUBNETS)} подсетей | {wl_configs_count} | {time_part} | {date_part} |\n"
-        new_section += f"| [`selected.txt`]({raw_url_selected}) | Отборные админами конфиги, самый надежный список | не знаю | {time_part} | {date_part} |\n\n"
-        
-        # Обновляем файл
+        new_section = f"""
+## 📊 Статус обновления
+
+| Файл | Описание | Конфигов | Время обновления | Дата |
+|------|----------|----------|------------------|------|
+| [`merged.txt`]({raw_url_merged}) | Все конфиги из {len(URLS)} источников | {total_configs} | {time_part} | {date_part} |
+| [`wl.txt`]({raw_url_wl}) | Только конфиги из {len(WHITELIST_SUBNETS)} подсетей | {wl_configs_count} | {time_part} | {date_part} |
+| [`selected.txt`]({raw_url_selected}) | Отборные админами конфиги, самый надежный список | не знаю | {time_part} | {date_part} |
+
+"""
         sha = readme_file.sha if 'readme_file' in locals() else None
-        REPO.update_file(
-            path="README.md",
-            message="📝 Обновление README: " + str(total_configs) + " конфигов, " + str(wl_configs_count) + " в whitelist",
-            content=new_section,
-            sha=sha
-        )
+        REPO.update_file(path="README.md", message=f"📝 Обновление README: {total_configs} конфигов, {wl_configs_count} в whitelist",
+                         content=new_section, sha=sha)
         log("📝 README.md обновлён")
-        
     except Exception as e:
         log("Ошибка обновления README: " + str(e))
 
 def process_selected_file():
-    """Обрабатывает файл selected.txt с ручными серверами, включая дедупликацию"""
     selected_file = PATHS["selected"]
-    
-    if os.path.exists(selected_file):
-        try:
-            with open(selected_file, "r", encoding="utf-8") as f:
-                lines = f.readlines()
-        except Exception as e:
-            log(f"❌ Ошибка чтения selected.txt: {str(e)}")
-            return []
-        
-        configs = []
-        manual_comments = []
-        
-        skip_auto_header = False
-        for line in lines:
-            stripped = line.strip()
-            
-            if stripped.startswith("#profile-title: WL RUS (selected)"):
-                skip_auto_header = True
-                continue
-            
-            if skip_auto_header:
-                if stripped.startswith("#") or not stripped:
-                    continue
-                else:
-                    skip_auto_header = False
-            
-            if not stripped:
-                if manual_comments and manual_comments[-1] != "":
-                    manual_comments.append("")
-            elif stripped.startswith('#'):
-                manual_comments.append(stripped)
-            else:
-                if any(stripped.startswith(p) for p in ['vmess://', 'vless://', 'trojan://', 
-                                                         'ss://', 'ssr://', 'tuic://', 
-                                                         'hysteria://', 'hysteria2://']):
-                    configs.append((len(configs), stripped))
-                elif '@' in stripped and ':' in stripped and stripped.count(':') >= 2:
-                    configs.append((len(configs), stripped))
-        
-        if configs:
-            try:
-                # ДЕДУПЛИКАЦИЯ С УЧЕТОМ ВСЕХ ПАРАМЕТРОВ КОНФИГА
-                config_indices = [idx for idx, _ in configs]
-                raw_configs = [config for _, config in configs]
-                
-                seen_full = set()
-                seen_config_keys = set()  # Уникальные ключи конфигов (по параметрам)
-                unique_configs_with_index = []
-                duplicates_count = 0
-                
-                for idx, config in zip(config_indices, raw_configs):
-                    if config in seen_full:
-                        duplicates_count += 1
-                        continue
-                    seen_full.add(config)
-                    
-                    # Генерируем уникальный ключ конфига на основе его параметров
-                    config_key = generate_config_key(config)
-                    if config_key and config_key in seen_config_keys:
-                        duplicates_count += 1
-                        continue
-                    seen_config_keys.add(config_key)
-                    
-                    unique_configs_with_index.append((idx, config))
-                
-                if duplicates_count > 0:
-                    log(f"🔍 Найдено {duplicates_count} дубликатов в selected.txt")
-                
-                # Обрабатываем конфиги с нумерацией (благодарность определится внутри process_configs_with_numbering)
-                unique_configs = [config for _, config in unique_configs_with_index]
-                processed_configs = process_configs_with_numbering(unique_configs)
-                
-                processed_by_index = {}
-                for (idx, _), processed in zip(unique_configs_with_index, processed_configs):
-                    processed_by_index[idx] = processed
-                
-                # Сохраняем с одним заголовком
-                with open(selected_file, "w", encoding="utf-8") as f:
-                    f.write("#profile-title: WL RUS (selected)\n")
-                    f.write("#profile-update-interval: 24\n")
-                    f.write("#announce: Сервера из подписки должны использоваться ТОЛЬКО при белых списках!\n")
-                    
-                    if manual_comments:
-                        f.write("\n")
-                        for comment in manual_comments:
-                            if comment == "":
-                                f.write("\n")
-                            else:
-                                f.write(comment + "\n")
-                    
-                    if processed_configs:
-                        if manual_comments:
-                            f.write("\n")
-                        
-                        for i in range(len(processed_configs)):
-                            if i in processed_by_index:
-                                f.write(processed_by_index[i] + "\n")
-                                if i < len(processed_configs) - 1:
-                                    f.write("\n")
-                
-                log(f"✅ Обработан selected.txt: {len(processed_configs)} конфигов (удалено {duplicates_count} дубликатов)")
-                return processed_configs
-                
-            except Exception as e:
-                log(f"❌ Ошибка обработки конфигов в selected.txt: {str(e)}")
-                return []
-        else:
-            log("ℹ️ В selected.txt нет конфигов для обработки")
-            return []
-    else:
+    if not os.path.exists(selected_file):
         log("ℹ️ Файл selected.txt не найден")
+        return []
+    try:
+        with open(selected_file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except Exception as e:
+        log(f"❌ Ошибка чтения selected.txt: {str(e)}")
+        return []
+    configs = []
+    manual_comments = []
+    skip_auto_header = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("#profile-title: WL RUS (selected)"):
+            skip_auto_header = True
+            continue
+        if skip_auto_header:
+            if stripped.startswith("#") or not stripped:
+                continue
+            else:
+                skip_auto_header = False
+        if not stripped:
+            if manual_comments and manual_comments[-1] != "":
+                manual_comments.append("")
+        elif stripped.startswith('#'):
+            manual_comments.append(stripped)
+        else:
+            if any(stripped.startswith(p) for p in ['vmess://', 'vless://', 'trojan://', 
+                                                     'ss://', 'ssr://', 'tuic://', 
+                                                     'hysteria://', 'hysteria2://']):
+                configs.append((len(configs), stripped))
+            elif '@' in stripped and ':' in stripped and stripped.count(':') >= 2:
+                configs.append((len(configs), stripped))
+    if not configs:
+        log("ℹ️ В selected.txt нет конфигов")
+        return []
+    try:
+        config_indices = [idx for idx, _ in configs]
+        raw_configs = [cfg for _, cfg in configs]
+        seen_full = set()
+        seen_config_keys = set()
+        unique_configs_with_index = []
+        duplicates_count = 0
+        for idx, cfg in zip(config_indices, raw_configs):
+            if cfg in seen_full:
+                duplicates_count += 1
+                continue
+            seen_full.add(cfg)
+            config_key = generate_config_key(cfg)
+            if config_key and config_key in seen_config_keys:
+                duplicates_count += 1
+                continue
+            seen_config_keys.add(config_key)
+            unique_configs_with_index.append((idx, cfg))
+        if duplicates_count > 0:
+            log(f"🔍 Найдено {duplicates_count} дубликатов в selected.txt")
+        unique_configs = [cfg for _, cfg in unique_configs_with_index]
+        processed_configs = process_configs_with_numbering(unique_configs)
+        processed_by_index = {}
+        for (idx, _), processed in zip(unique_configs_with_index, processed_configs):
+            processed_by_index[idx] = processed
+        with open(selected_file, "w", encoding="utf-8") as f:
+            f.write("#profile-title: WL RUS (selected)\n")
+            f.write("#profile-update-interval: 24\n")
+            f.write("#announce: Сервера из подписки должны использоваться ТОЛЬКО при белых списках!\n")
+            if manual_comments:
+                f.write("\n")
+                for comment in manual_comments:
+                    f.write(comment + ("\n" if comment == "" else "\n"))
+            if processed_configs:
+                if manual_comments:
+                    f.write("\n")
+                for i in range(len(processed_configs)):
+                    if i in processed_by_index:
+                        f.write(processed_by_index[i] + "\n")
+                        if i < len(processed_configs) - 1:
+                            f.write("\n")
+        log(f"✅ Обработан selected.txt: {len(processed_configs)} конфигов")
+        return processed_configs
+    except Exception as e:
+        log(f"❌ Ошибка обработки selected.txt: {str(e)}")
         return []
 
 def filter_excluded_configs(configs, exclude_patterns=None, settings=None, excluded_file=None):
-    """
-    Фильтрует конфиги по паттернам исключения
-    """
     if exclude_patterns is None:
         exclude_patterns = EXCLUDE_PATTERNS
-    
     if settings is None:
         settings = EXCLUDE_SETTINGS.copy()
     else:
         settings = settings.copy()
-    
     if excluded_file:
         settings["excluded_file"] = excluded_file
-    
-    filtered_configs = []
-    excluded_configs = []
-    exclusion_stats = {}
-    
-    # Подготовка паттернов (регистр)
+    filtered = []
+    excluded = []
+    stats = {}
     if not settings.get("case_sensitive", False):
         exclude_patterns = [p.lower() for p in exclude_patterns]
-    
-    for config in configs:
-        config_for_check = config if settings.get("case_sensitive", False) else config.lower()
-        excluded = False
+    for cfg in configs:
+        cfg_check = cfg if settings.get("case_sensitive", False) else cfg.lower()
+        excluded_flag = False
         reason = ""
-        
-        # Проверка каждого паттерна
         for pattern in exclude_patterns:
-            # Разные типы проверок в зависимости от паттерна
-            if pattern.startswith("#"):  # Исключение по remark
-                remark_pattern = pattern[1:]  # Убираем #
-                if f"#{remark_pattern}" in config_for_check:
-                    excluded = True
+            if pattern.startswith("#"):
+                if f"#{pattern[1:]}" in cfg_check:
+                    excluded_flag = True
                     reason = f"remark содержит: {pattern}"
                     break
-                    
-            elif pattern.startswith("@"):  # Исключение по адресу
-                addr_pattern = pattern[1:]  # Убираем @
-                # Ищем адрес после @ и до : или ?
-                if f"@{addr_pattern}" in config_for_check:
-                    excluded = True
+            elif pattern.startswith("@"):
+                if f"@{pattern[1:]}" in cfg_check:
+                    excluded_flag = True
                     reason = f"адрес содержит: {pattern}"
                     break
-                    
-            elif pattern.startswith("/"):  # Исключение по path
-                if f"path={pattern}" in config_for_check or f"path%3D{pattern}" in config_for_check:
-                    excluded = True
+            elif pattern.startswith("/"):
+                if f"path={pattern}" in cfg_check or f"path%3D{pattern}" in cfg_check:
+                    excluded_flag = True
                     reason = f"path содержит: {pattern}"
                     break
-                    
-            else:  # Общая проверка по подстроке
-                if pattern in config_for_check:
-                    excluded = True
+            else:
+                if pattern in cfg_check:
+                    excluded_flag = True
                     reason = f"содержит: {pattern}"
                     break
-        
-        if excluded:
-            excluded_configs.append(config)
-            # Статистика по причинам
-            if reason in exclusion_stats:
-                exclusion_stats[reason] += 1
-            else:
-                exclusion_stats[reason] = 1
+        if excluded_flag:
+            excluded.append(cfg)
+            stats[reason] = stats.get(reason, 0) + 1
         else:
-            filtered_configs.append(config)
-    
-    # Вывод статистики
+            filtered.append(cfg)
     if settings.get("log_excluded", True):
-        log(f"🚫 Фильтрация исключений:")
-        log(f"   Всего конфигов до фильтрации: {len(configs)}")
-        log(f"   Исключено: {len(excluded_configs)}")
-        log(f"   Осталось после исключений: {len(filtered_configs)}")
-        
-        if exclusion_stats:
-            log(f"   Причины исключений:")
-            for reason, count in exclusion_stats.items():
-                log(f"     • {reason}: {count}")
-    
-    # Сохранение исключенных конфигов
-    if settings.get("save_excluded", True) and excluded_configs:
-        excluded_filename = settings.get("excluded_file", "excluded.txt")
-        with open(excluded_filename, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(excluded_configs))
-        log(f"💾 Исключенные конфиги сохранены в {excluded_filename} ({len(excluded_configs)} шт.)")
-    
-    return filtered_configs, excluded_configs
+        log(f"🚫 Исключено: {len(excluded)}")
+        if stats:
+            for r, c in stats.items():
+                log(f"   • {r}: {c}")
+    if settings.get("save_excluded", True) and excluded:
+        with open(settings.get("excluded_file", "excluded.txt"), "w", encoding="utf-8") as f:
+            f.write("\n".join(excluded))
+        log(f"💾 Исключённые сохранены в {settings['excluded_file']}")
+    return filtered, excluded
 
 def upload_to_cloud_ru(file_path: str, s3_path: str = None):
-    """Загружает файл в bucket Cloud.ru по S3 API"""
     if not all([CLOUD_RU_ENDPOINT, CLOUD_RU_ACCESS_KEY, CLOUD_RU_SECRET_KEY, CLOUD_RU_BUCKET]):
-        log("❌ Пропускаю загрузку в Cloud.ru: отсутствуют необходимые переменные окружения")
+        log("❌ Пропускаю Cloud.ru: нет переменных")
         return
-    
     try:
-        # Пробуем импортировать boto3
-        try:
-            import boto3
-            from botocore.config import Config
-        except ImportError:
-            log("❌ Модуль boto3 не установлен. Установите: pip install boto3")
-            return
-        
-        if not os.path.exists(file_path):
-            log(f"❌ Файл {file_path} не найден для загрузки в Cloud.ru")
-            return
-        
-        # Определяем имя файла в bucket
-        if s3_path is None:
-            s3_path = os.path.basename(file_path)
-        
-        log(f"☁️  Загружаю {file_path} в Cloud.ru bucket {CLOUD_RU_BUCKET} как {s3_path}")
-        
-        # Настройка клиента S3 для Cloud.ru
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=CLOUD_RU_ENDPOINT,
-            aws_access_key_id=CLOUD_RU_ACCESS_KEY,
-            aws_secret_access_key=CLOUD_RU_SECRET_KEY,
-            region_name=CLOUD_RU_REGION,
-            config=Config(
-                signature_version='s3v4',
-                s3={'addressing_style': 'path'}
-            )
-        )
-        
-        # Загружаем файл
+        import boto3
+        from botocore.config import Config
+    except ImportError:
+        log("❌ boto3 не установлен")
+        return
+    if not os.path.exists(file_path):
+        log(f"❌ Файл {file_path} не найден")
+        return
+    s3_path = s3_path or os.path.basename(file_path)
+    try:
+        s3 = boto3.client('s3',
+                          endpoint_url=CLOUD_RU_ENDPOINT,
+                          aws_access_key_id=CLOUD_RU_ACCESS_KEY,
+                          aws_secret_access_key=CLOUD_RU_SECRET_KEY,
+                          region_name=CLOUD_RU_REGION,
+                          config=Config(signature_version='s3v4'))
         with open(file_path, 'rb') as f:
-            s3_client.put_object(
-                Bucket=CLOUD_RU_BUCKET,
-                Key=s3_path,
-                Body=f,
-                ContentType='text/plain; charset=utf-8',
-            )
-        
-        log(f"✅ Файл успешно загружен в Cloud.ru: {s3_path}")
-        
-        # Формируем ссылку на файл
-        file_url = f"{CLOUD_RU_ENDPOINT}/{CLOUD_RU_BUCKET}/{s3_path}"
-        log(f"🔗 Ссылка на файл: {file_url}")
-        
+            s3.put_object(Bucket=CLOUD_RU_BUCKET, Key=s3_path, Body=f, ContentType='text/plain')
+        log(f"✅ Загружено в Cloud.ru: {s3_path}")
     except Exception as e:
-        error_msg = str(e)
-        # Более подробное логирование ошибки
-        if "AuthorizationHeaderMalformed" in error_msg:
-            log(f"❌ Ошибка авторизации Cloud.ru: неверный регион или endpoint. Убедитесь, что регион: {CLOUD_RU_REGION}")
-        else:
-            log(f"❌ Ошибка при загрузке в Cloud.ru: {error_msg[:200]}")
-        
+        log(f"❌ Ошибка Cloud.ru: {str(e)[:200]}")
+
 def upload_to_gitverse(filename: str, remote_path: str = None):
-    """Загружает файл на GitVerse через API с корректным версионированием"""
     if not GITVERSE_TOKEN:
-        log("❌ Пропускаю загрузку на GitVerse: отсутствует токен")
+        log("❌ Пропускаю GitVerse: нет токена")
         return
-    
     if not os.path.exists(filename):
-        log(f"❌ Файл {filename} не найден для загрузки на GitVerse")
+        log(f"❌ Файл {filename} не найден")
         return
-    
     try:
-        # 1. Чтение файла
         with open(filename, "r", encoding="utf-8") as f:
             content = f.read()
-        
         remote_path = remote_path or os.path.basename(filename)
-        
-        # 2. Определение базового URL и первичных заголовков
         base_url = "https://api.gitverse.ru"
-        
-        # 3. ОСНОВНОЕ ИСПРАВЛЕНИЕ: правильный формат Accept-заголовка
-        primary_headers = {
+        headers = {
             "Authorization": f"Bearer {GITVERSE_TOKEN}",
-            "Accept": "application/vnd.gitverse.object+json;version=1",  # <-- ИСПРАВЛЕНО
+            "Accept": "application/vnd.gitverse.object+json;version=1",
             "Content-Type": "application/json"
         }
-        
-        # 4. Проверка доступности API и получение актуальной версии
-        log(f"🔍 Проверяю доступ к API GitVerse...")
-        latest_version = None
-        
-        try:
-            test_response = requests.get(
-                f"{base_url}/user",
-                headers=primary_headers,
-                timeout=10
-            )
-            
-            # Если получили 400, возможно, версия устарела
-            if test_response.status_code == 400:
-                latest_version = test_response.headers.get('Gitverse-Api-Latest-Version')
-                if latest_version:
-                    log(f"⚠️  Версия 1 устарела. Актуальная версия: {latest_version}")
-                    # Обновляем заголовок с актуальной версией
-                    primary_headers["Accept"] = f"application/vnd.gitverse.object+json;version={latest_version}"
-                    
-                    # Повторяем проверку с новой версией
-                    test_response = requests.get(
-                        f"{base_url}/user",
-                        headers=primary_headers,
-                        timeout=10
-                    )
-            
-            if test_response.status_code == 200:
-                user_info = test_response.json()
-                log(f"✅ Аутентифицирован как: {user_info.get('login', 'Unknown')}")
-                log(f"✅ Версия API: {primary_headers['Accept'].split('version=')[1]}")
-            elif test_response.status_code in [401, 403]:
-                log(f"❌ Ошибка доступа ({test_response.status_code}). Проверьте токен.")
-                return
-            else:
-                log(f"⚠️  Неожиданный ответ от API: {test_response.status_code}")
-                
-        except requests.exceptions.RequestException as e:
-            log(f"❌ Ошибка подключения: {str(e)[:100]}")
+        # Проверка аутентификации
+        user_resp = requests.get(f"{base_url}/user", headers=headers, timeout=10)
+        if user_resp.status_code != 200:
+            log(f"❌ GitVerse auth failed: {user_resp.status_code}")
             return
-        
-        # 5. Формируем URL для работы с файлом (согласно п.6 документации)
-        content_url = f"{base_url}/repos/{GITVERSE_REPO_OWNER}/{GITVERSE_REPO_NAME}/contents/{remote_path}"
-        
-        # 6. Кодируем содержимое
-        content_b64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
-        
-        # 7. Проверяем существование файла и получаем SHA
+        content_b64 = base64.b64encode(content.encode()).decode()
+        # Проверяем существование файла
         sha = None
-        try:
-            params = {'ref': GITVERSE_BRANCH} if GITVERSE_BRANCH else {}
-            get_response = requests.get(
-                content_url,
-                headers=primary_headers,
-                params=params,
-                timeout=10
-            )
-            
-            if get_response.status_code == 200:
-                existing_file = get_response.json()
-                sha = existing_file.get('sha', '')
-                log(f"📄 Файл существует. SHA: {sha[:8]}...")
-            elif get_response.status_code != 404:
-                log(f"⚠️  Не удалось проверить файл ({get_response.status_code})")
-                
-        except requests.exceptions.RequestException:
-            pass  # Пропускаем ошибку проверки
-        
-        # 8. Подготовка данных для PUT запроса
+        url = f"{base_url}/repos/{GITVERSE_REPO_OWNER}/{GITVERSE_REPO_NAME}/contents/{remote_path}"
+        params = {'ref': GITVERSE_BRANCH} if GITVERSE_BRANCH else {}
+        get_resp = requests.get(url, headers=headers, params=params, timeout=10)
+        if get_resp.status_code == 200:
+            sha = get_resp.json().get('sha', '')
         data = {
             "message": f"🤖 Авто-обновление: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             "content": content_b64,
         }
-        
         if GITVERSE_BRANCH:
             data["branch"] = GITVERSE_BRANCH
         if sha:
-            data["sha"] = sha  # Обязательно для обновления существующего файла
-        
-        # 9. Выполняем основной запрос (PUT)
-        log(f"📤 {'Обновляю' if sha else 'Создаю'} файл '{remote_path}'...")
-        try:
-            put_response = requests.put(content_url, headers=primary_headers, json=data, timeout=15)
-            
-            if put_response.status_code in [200, 201]:
-                action = "обновлён" if sha else "создан"
-                log(f"✅ Файл успешно {action}!")
-                
-                # Проверяем, не устарела ли используемая версия API
-                if put_response.headers.get('Gitverse-Api-Deprecation') == 'true':
-                    latest = put_response.headers.get('Gitverse-Api-Latest-Version')
-                    decommission = put_response.headers.get('Gitverse-Api-Decommissioning')
-                    log(f"⚠️  ВНИМАНИЕ: Используемая версия API устарела!")
-                    log(f"    Актуальная версия: {latest}")
-                    log(f"    Отключение: {decommission}")
-                    
-            elif put_response.status_code == 400:
-                error_text = put_response.text[:200]
-                log(f"❌ Ошибка 400: {error_text}")
-                
-                # Если в ответе есть указание на последнюю версию
-                latest_in_response = put_response.headers.get('Gitverse-Api-Latest-Version')
-                if latest_in_response and latest_in_response != latest_version:
-                    log(f"🔄 Обнаружена новая актуальная версия: {latest_in_response}")
-                    
-            elif put_response.status_code == 403:
-                log(f"❌ Ошибка 403: Доступ запрещён")
-                log(f"   Проверьте:")
-                log(f"   1. Существует ли репозиторий '{GITVERSE_REPO_OWNER}/{GITVERSE_REPO_NAME}'")
-                log(f"   2. Имеет ли токен права на запись (scope 'repo' или 'write:repo')")
-                log(f"   Полный ответ: {put_response.text[:300]}")
-                
-            elif put_response.status_code == 409:
-                log(f"❌ Конфликт: SHA файла изменился. Обновите локальный SHA.")
-                
-            else:
-                log(f"❌ Ошибка {put_response.status_code}: {put_response.text[:200]}")
-                
-        except requests.exceptions.RequestException as e:
-            log(f"❌ Сетевая ошибка: {str(e)[:100]}")
-            
+            data["sha"] = sha
+        put_resp = requests.put(url, headers=headers, json=data, timeout=15)
+        if put_resp.status_code in [200, 201]:
+            log(f"✅ GitVerse: {remote_path} обновлён")
+        else:
+            log(f"❌ GitVerse error {put_resp.status_code}: {put_resp.text[:200]}")
     except Exception as e:
-        log(f"❌ Общая ошибка: {str(e)}")
-    
-def main():
-    """Основная функция"""
+        log(f"❌ GitVerse error: {str(e)}")
 
+def main():
     log("📥 Загрузка конфигов...")
-    
     all_configs = []
     max_workers = min(DEFAULT_MAX_WORKERS, len(URLS))
-    
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {}
-        for url in URLS:
-            future = executor.submit(download_and_process_url, url)
-            futures[future] = url
-        
+        futures = {executor.submit(download_and_process_url, url): url for url in URLS}
         for future in concurrent.futures.as_completed(futures):
             url = futures[future]
             try:
@@ -1493,134 +1088,55 @@ def main():
                 if configs:
                     all_configs.extend(configs)
             except Exception as e:
-                error_msg = str(e)
-                if len(error_msg) > 50:
-                    error_msg = error_msg[:50]
-                log("Таймаут или ошибка для " + url + ": " + error_msg)
-    
-    log("📊 Скачано всего: " + str(len(all_configs)) + " конфигов")
-    
-    # 2. Обрабатываем selected.txt (ручные серверы)
+                log(f"Таймаут/ошибка {url}: {str(e)[:50]}")
+    log(f"📊 Скачано всего: {len(all_configs)} конфигов")
     log("🔧 Обработка selected.txt...")
     selected_configs = process_selected_file()
-    
     if not all_configs:
-        log("❌ Не удалось загрузить ни одного конфига")
+        log("❌ Нет конфигов, выход")
         return
-    
-    # 3. Добавляем selected конфиги в общий список
     all_configs.extend(selected_configs)
-    
-    # 4. Приоритизация: конфиги с @YoutubeUnBlockRu должны идти первыми
-    log("⭐ Применяем приоритет для конфигов с @YoutubeUnBlockRu...")
+    log("⭐ Приоритизация @YoutubeUnBlockRu...")
     all_configs = prioritize_configs(all_configs)
-    
-    # 5. Дедупликация и сортировка по подсетям
-    log("🔄 Дедупликация и фильтрация...")
+    log("🔄 Дедупликация...")
     unique_configs, whitelist_configs = merge_and_deduplicate(all_configs)
-    log("🔄 После дедупликации: " + str(len(unique_configs)) + " конфигов")
-    log("🛡️ Whitelist конфигов: " + str(len(whitelist_configs)))
-    
-    # 6. ФИЛЬТРАЦИЯ ИСКЛЮЧЕНИЙ
-    log("🚫 Применение списка исключений...")
-    
-    # Фильтруем основной список (merged)
-    filtered_unique_configs, excluded_unique = filter_excluded_configs(
-        unique_configs, 
-        excluded_file="excluded_merged.txt"
-    )
-    
-    # Фильтруем whitelist список
-    filtered_whitelist_configs, excluded_whitelist = filter_excluded_configs(
-        whitelist_configs,
-        excluded_file="excluded_wl.txt"
-    )
-    
-    # Обновляем переменные для дальнейшего использования
-    unique_configs = filtered_unique_configs
-    whitelist_configs = filtered_whitelist_configs
-    
-    log(f"✅ После исключений:")
-    log(f"   • merged: {len(unique_configs)} конфигов (исключено {len(excluded_unique)})")
-    log(f"   • whitelist: {len(whitelist_configs)} конфигов (исключено {len(excluded_whitelist)})")
-    
-    # 7. Сохраняем локально
+    log(f"🔄 После дедупликации: {len(unique_configs)} конфигов")
+    log(f"🛡️ Whitelist: {len(whitelist_configs)}")
+    log("🚫 Применение исключений...")
+    filtered_unique, excluded_unique = filter_excluded_configs(unique_configs, excluded_file="excluded_merged.txt")
+    filtered_wl, excluded_wl = filter_excluded_configs(whitelist_configs, excluded_file="excluded_wl.txt")
+    unique_configs, whitelist_configs = filtered_unique, filtered_wl
+    log(f"✅ После исключений: merged={len(unique_configs)}, wl={len(whitelist_configs)}")
     os.makedirs("confs", exist_ok=True)
-    
-    # СОХРАНЯЕМ merged.txt С НУМЕРАЦИЕЙ (включая конфиги из selected.txt)
-    save_to_file(unique_configs, "merged", "Объединенные конфиги (после исключений)", add_numbering=True)
-    save_to_file(whitelist_configs, "wl", "Whitelist конфиги (после исключений)", add_numbering=True)
-    
-    # 8. Загружаем на GitHub
+    save_to_file(unique_configs, "merged", "Объединённые конфиги", add_numbering=True)
+    save_to_file(whitelist_configs, "wl", "Whitelist конфиги", add_numbering=True)
     log("🌐 Загрузка на GitHub...")
     upload_to_github(PATHS["merged"])
     upload_to_github(PATHS["wl"])
     upload_to_github(PATHS["selected"])
-    
-    # 9. Загружаем в Cloud.ru
-    log("☁️  Начинаю загрузку в Cloud.ru...")
-    files_to_upload = {
-        "merged.txt": PATHS["merged"],
-        "wl.txt": PATHS["wl"],
-        "selected.txt": PATHS["selected"]
-    }
-    
-    for s3_name, local_path in files_to_upload.items():
-        if os.path.exists(local_path):
-            upload_to_cloud_ru(local_path, s3_name)
-        else:
-            log(f"⚠️  Файл {local_path} не найден, пропускаю загрузку в Cloud.ru")
-
+    log("☁️ Загрузка в Cloud.ru...")
+    for s3_name, local in {"merged.txt": PATHS["merged"], "wl.txt": PATHS["wl"], "selected.txt": PATHS["selected"]}.items():
+        if os.path.exists(local):
+            upload_to_cloud_ru(local, s3_name)
     if GITVERSE_TOKEN:
-        log("🚀 Начинаю загрузку на GitVerse...")
-        gitverse_files = {
-            "merged.txt": PATHS["merged"],
-            "wl.txt": PATHS["wl"],
-            "selected.txt": PATHS["selected"]
-        }
-    
-        # Создаем сессию для повторного использования соединений
-        for remote_name, local_path in gitverse_files.items():
-            if os.path.exists(local_path):
-                upload_to_gitverse(local_path, remote_name)
-            else:
-                log(f"⚠️  Файл {local_path} не найден, пропускаю загрузку на GitVerse")
-    else:
-        log("ℹ️  Токен GitVerse не задан, пропускаю загрузку")
-    
-    # 10. Обновляем README
+        log("🚀 Загрузка на GitVerse...")
+        for remote, local in {"merged.txt": PATHS["merged"], "wl.txt": PATHS["wl"], "selected.txt": PATHS["selected"]}.items():
+            if os.path.exists(local):
+                upload_to_gitverse(local, remote)
     update_readme(len(unique_configs), len(whitelist_configs))
-    
-    # 11. Выводим итоги
-    log("=" * 60)
+    log("="*60)
     log("📊 ИТОГИ:")
-    log("   🌐 Источников: " + str(len(URLS)))
-    log("   📥 Скачано из URL: " + str(len(all_configs) - len(selected_configs)))
-    log("   🔧 Из selected.txt: " + str(len(selected_configs)))
-    log("   🔄 Уникальных (после дедупликации): " + str(len(filtered_unique_configs)))
-    log("   🚫 Исключено паттернами: " + str(len(excluded_unique) + len(excluded_whitelist)))
-    log("   🛡️ Whitelist (после исключений): " + str(len(filtered_whitelist_configs)))
-    log("   💾 Основные файлы:")
-    log(f"      • {PATHS['merged']} ({len(unique_configs)} конфигов)")
-    log(f"      • {PATHS['wl']} ({len(whitelist_configs)} конфигов)")
-    log(f"      • {PATHS['selected']}")
-    log(f"      • excluded_merged.txt ({len(excluded_unique)} конфигов)")
-    log(f"      • excluded_wl.txt ({len(excluded_whitelist)} конфигов)")
-    log("   ☁️  Cloud.ru bucket: " + (CLOUD_RU_BUCKET if CLOUD_RU_BUCKET else "не настроен"))
-    log("   🚀 GitVerse: " + ("настроен" if GITVERSE_TOKEN else "не настроен"))
-    log("=" * 60)
-    
-    # Проверяем изменения для GitHub Actions
-    log("💾 Проверка изменений...")
-    log(f"📊 Конфигов в merged.txt: {len(unique_configs)}")
-    log(f"🛡️ Конфигов в wl.txt: {len(whitelist_configs)}")
-    
-    # Выводим логи
+    log(f"   🌐 Источников: {len(URLS)}")
+    log(f"   📥 Из URL: {len(all_configs)-len(selected_configs)}")
+    log(f"   🔧 Из selected.txt: {len(selected_configs)}")
+    log(f"   🔄 Уникальных: {len(filtered_unique)}")
+    log(f"   🚫 Исключено: {len(excluded_unique)+len(excluded_wl)}")
+    log(f"   🛡️ Whitelist: {len(filtered_wl)}")
+    log("="*60)
     print("\n📋 ЛОГИ ВЫПОЛНЕНИЯ (" + offset + "):")
-    print("=" * 60)
+    print("="*60)
     for line in LOGS_BY_FILE[0]:
         print(line)
-
 
 if __name__ == "__main__":
     main()
