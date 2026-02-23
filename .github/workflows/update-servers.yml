@@ -125,10 +125,21 @@ jobs:
         fi
         echo "Пример первых двух сырых ссылок:"
         head -n 2 raw_links.txt
+    - name: 📄 Create clean links (with fragment)
+      run: |
+        grep -E '^(vless|vmess|trojan|ss|ssr|tuic|hysteria)://' links.txt > clean_links.txt
+        echo "Чистых ссылок (с фрагментом): $(wc -l < clean_links.txt)"
 
-    - name: 🔍 Run vless_checker on raw links
+    - name: 🔍 Hexdump raw_links.txt
+      run: |
+        echo "=== raw_links.txt first 3 lines hex ==="
+        head -n 3 raw_links.txt | hexdump -C
+        echo "=== clean_links.txt first 3 lines hex ==="
+        head -n 3 clean_links.txt | hexdump -C
+
+    - name: 🔍 Run vless_checker on clean links (with fragment)
       env:
-        LINKS_FILE: raw_links.txt
+        LINKS_FILE: clean_links.txt
       run: python -u vless_checker.py
 
     - name: 📌 Add checked files to git
