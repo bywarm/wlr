@@ -105,15 +105,15 @@ jobs:
       run: |
         cp "$OUTPUT_DIR/merged.txt" links.txt
         echo "links.txt created with $(wc -l < links.txt) lines"
-
-    - name: 🔍 Run vless_checker
-      env:
-        LINKS_FILE: ${{ env.OUTPUT_DIR }}/merged.txt
-      run: python vless_checker.py
-
-    - name: ⚡ Run speedtest on confs/available
-      run: python speedtest_checker.py confs/available
-
+        
+    - name: Debug merged.txt content
+      run: |
+        echo "=== merged.txt first 200 chars ==="
+        head -c 200 confs/merged.txt | cat -v
+        echo "=== end ==="
+        - name: ⚡ Run speedtest on confs/available
+          run: python speedtest_checker.py confs/available
+        
     - name: 🔁 Replace available with speedtest result
       run: |
         if [ -f "confs/available_st" ] && [ -s "confs/available_st" ]; then
