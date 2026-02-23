@@ -111,8 +111,13 @@ jobs:
         echo "=== merged.txt first 200 bytes (hex) ==="
         head -c 200 confs/merged.txt | hexdump -C
         echo "=== end ==="
-        
-    - name: 🔁 Replace available with speedtest result
+
+    - name: 🔍 Run vless_checker
+      env:
+        LINKS_FILE: links.txt
+      run: python -u vless_checker.py 
+
+    - name: 🔍 Speedtest
       run: |
         if [ -f "confs/available_st" ] && [ -s "confs/available_st" ]; then
           mv "confs/available_st" "confs/available"
