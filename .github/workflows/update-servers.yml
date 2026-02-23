@@ -106,7 +106,9 @@ jobs:
         cp "$OUTPUT_DIR/merged.txt" links.txt
         echo "links.txt created with $(wc -l < links.txt) lines"
 
-    - name: 🔍 Run vless_checker (connectivity test)
+    - name: 🔍 Run vless_checker
+      env:
+        LINKS_FILE: ${{ env.OUTPUT_DIR }}/merged.txt
       run: python vless_checker.py
 
     - name: ⚡ Run speedtest on confs/available
