@@ -1,0 +1,207 @@
+name: Update Configs Hourly (Windows)
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      folder_name:
+        description: 'Имя папки для конфигов'
+        required: false
+        default: 'confs'
+
+env:
+  # Общие переменные (оставляем как есть)
+  MY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITVERSE_TOKEN: ${{ secrets.GITVERSE_TOKEN }}
+  CLOUD_RU_SECRET_KEY: ${{ secrets.CLOUD_RU_SECRET_KEY }}
+  OUTPUT_DIR: ${{ github.event.inputs.folder_name || 'confs' }}
+
+  # Переменные для проверки (можно оставить те же)
+  MODE: single
+  LINKS_FILE: links.txt
+  OUTPUT_FILE: available
+  OUTPUT_ADD_DATE: 'false'
+  MAX_WORKERS: 600
+  EXPORT_FORMAT: txt
+  ENABLE_CACHE: 'false'
+  TEST_URLS: http://www.google.com/generate_204,http://www.cloudflare.com/cdn-cgi/trace
+  TEST_URLS_HTTPS: https://www.gstatic.com/generate_204
+  REQUIRE_HTTPS: 'false'
+  STRONG_STYLE_TEST: 'false'
+  STRONG_STYLE_TIMEOUT: 12
+  STRONG_MAX_RESPONSE_TIME: 3
+  STRONG_DOUBLE_CHECK: 'true'
+  STRONG_ATTEMPTS: 3
+  REQUESTS_PER_URL: 1
+  MIN_SUCCESSFUL_REQUESTS: 1
+  MIN_SUCCESSFUL_URLS: 1
+  REQUEST_DELAY: 0.1
+  CONNECT_TIMEOUT: 6
+  CONNECT_TIMEOUT_SLOW: 15
+  USE_ADAPTIVE_TIMEOUT: 'false'
+  MAX_RETRIES: 1
+  MAX_RESPONSE_TIME: 10
+  MIN_RESPONSE_SIZE: 0
+  MAX_LATENCY_MS: 2000
+  VERIFY_HTTPS_SSL: 'false'
+  STABILITY_CHECKS: 2
+  STABILITY_CHECK_DELAY: 2
+  STRICT_MODE: 'true'
+  STRICT_MODE_REQUIRE_ALL: 'true'
+  TEST_POST_REQUESTS: 'false'
+  SPEED_TEST_ENABLED: 'false'
+  XRAY_STARTUP_WAIT: 1.8
+  XRAY_STARTUP_POLL_INTERVAL: 0.2
+  BASE_PORT: 20000
+
+jobs:
+  update:
+    runs-on: self-hosted  # используем ваш Windows-раннер
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+    - name: ⬇️ Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # PowerShell теперь доступен, настраиваем политику выполнения (если ещё не сделано)
+    - name: ⚙️ Set PowerShell execution policy (temporary)
+      run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+      shell: powershell
+
+    # Проверяем Python (уже должен быть установлен)
+    - name: 🐍 Verify Python installation
+      run: python --version
+      shell: powershell
+
+    # Устанавливаем зависимости (pip должен быть)
+    - name: 📦 Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install PyGithub requests urllib3 boto3 aiohttp tqdm pyyaml
+      shell: powershell
+
+    - name: 🚀 Run merge script
+      run: python scripts/simple_merge.py
+      shell: powershell
+      env:
+        OUTPUT_DIR: ${{ env.OUTPUT_DIR }}
+
+    - name: 📄 Verify merged.txt exists
+      run: |
+        if (-Not (Test-Path "$env:OUTPUT_DIR/merged.txt")) {
+            Write-Host "❌ merged.txt not found!"
+            exit 1
+        }
+        $lines = (Get-Content "$env:OUTPUT_DIR/merged.txt" | Measure-Object -Line).Lines
+        Write-Host "merged.txt готов, строк: $lines"
+        Write-Host "Первые 5 строк merged.txt:"
+        Get-Content "$env:OUTPUT_DIR/merged.txt" -TotalCount 5
+      shell: powershell
+
+    # Создаём raw_links.txt (без фрагментов) прямо из merged.txt
+    - name: 📄 Prepare raw links (without fragment)
+      run: |
+        Get-Content "$env:OUTPUT_DIR/merged.txt" | Where-Object { $_ -match '^vless://' } | ForEach-Object { $_ -replace '#.*$', '' } | Where-Object { $_ -ne '' } | Set-Content raw_links.txt
+        $raw = (Get-Content raw_links.txt | Measure-Object -Line).Lines
+        Write-Host "Сырых ссылок: $raw"
+        if ($raw -eq 0) {
+            Write-Host "❌ Нет валидных ссылок!"
+            exit 1
+        }
+        Write-Host "Пример первых двух сырых ссылок:"
+        Get-Content raw_links.txt -TotalCount 2
+      shell: powershell
+
+    - name: 🔍 Run vless_checker on raw links
+      env:
+        LINKS_FILE: raw_links.txt
+        # Можно переопределить любые переменные, если нужно
+      run: python vless_checker.py
+      shell: powershell
+
+    # Далее ваши шаги speedtest и коммита (они должны быть переписаны под PowerShell аналогично)
+    # Пример для speedtest (если нужен):
+    - name: ⚡ Run speedtest on configs/available
+      if: env.SPEED_TEST_ENABLED == 'true'
+      run: python speedtest_checker.py configs/available
+      shell: powershell
+      env:
+        SPEED_TEST_ENABLED: ${{ env.SPEED_TEST_ENABLED }}
+        # ... остальные переменные
+
+    - name: 🔁 Replace available with speedtest result
+      if: env.SPEED_TEST_ENABLED == 'true'
+      run: |
+        if (Test-Path "configs/available_st") {
+            Move-Item -Force "configs/available_st" "configs/available"
+            if (Test-Path "configs/available_st(top100)") {
+                Move-Item -Force "configs/available_st(top100)" "configs/available(top100)"
+            } else {
+                Get-Content "configs/available" -TotalCount 100 | Set-Content "configs/available(top100)"
+            }
+            Write-Host "✅ Speedtest results applied"
+        } else {
+            Write-Host "⚠️ Speedtest produced no output, keeping original available"
+        }
+      shell: powershell
+
+    - name: 📌 Add checked files to git
+      run: |
+        git add configs/available configs/available(top100) configs/notworkers
+      shell: powershell
+      continue-on-error: true   # на случай, если файлов нет
+
+    - name: 💾 Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git config --local pull.rebase true
+
+        git add "$env:OUTPUT_DIR/*"
+        git add README.md
+
+        $status = git diff --cached --quiet
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "🔄 Нет изменений для коммита"
+            exit 0
+        }
+
+        $MOSCOW_TIME = (Get-Date).ToUniversalTime().AddHours(3).ToString("HH:mm | dd.MM.yyyy")
+        git commit -m "🤖 Авто-обновление: $MOSCOW_TIME"
+
+        Write-Host "🔄 Синхронизируем с удаленным репозиторием..."
+        git pull --rebase origin main
+        if ($LASTEXITCODE -ne 0) {
+            git rebase --abort
+            git pull origin main --strategy-option ours
+        }
+
+        Write-Host "📤 Отправляем изменения..."
+        $MAX_RETRIES = 3
+        $RETRY_DELAY = 10
+        for ($i=1; $i -le $MAX_RETRIES; $i++) {
+            Write-Host "Попытка $i из $MAX_RETRIES..."
+            git push origin main
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "✅ Изменения успешно отправлены"
+                break
+            } else {
+                Write-Host "❌ Ошибка при отправке, попытка $i не удалась"
+                if ($i -lt $MAX_RETRIES) {
+                    Write-Host "⏳ Ждем $RETRY_DELAY секунд..."
+                    Start-Sleep -Seconds $RETRY_DELAY
+                    git pull origin main --rebase
+                } else {
+                    Write-Host "💥 Все попытки отправки не удались"
+                    exit 1
+                }
+            }
+        }
+      shell: powershell
