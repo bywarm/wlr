@@ -117,10 +117,16 @@ jobs:
          mv confs/notworkers confs/notworkers.bak
         echo "notworkers отключён (переименован)"
         fi
-    - name: 🔍 Run vless_checker on merged.txt (single mode)
+    - name: 🔍 Run vless_checker (very relaxed)
       env:
-        MODE: single   # переопределяем режим
-        # Другие переменные для vless_checker берутся из глобальных env
+        MODE: single
+        STRONG_STYLE_TEST: 'false'
+        MIN_SUCCESSFUL_URLS: 1
+        REQUESTS_PER_URL: 1
+        REQUIRE_HTTPS: 'false'        # или 'true', если клиенты используют HTTPS
+        MAX_RESPONSE_TIME: 15
+        MAX_LATENCY_MS: 5000           # или 0 (отключить)
+        STABILITY_CHECKS: 1
       run: python vless_checker.py "$OUTPUT_DIR/merged.txt"
 
     - name: 📌 Add checked files to git
