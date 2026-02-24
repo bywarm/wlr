@@ -378,4 +378,3 @@ vless://b4f272ea-cd4f-4df9-9929-1c6b49c0b6ac@5.188.115.178:443/?type=tcp&encrypt
 vless://b4f272ea-cd4f-4df9-9929-1c6b49c0b6ac@5.188.115.178:443/?type=tcp&encryption=none&flow=xtls-rprx-vision&sni=rutube.ru&fp=qq&security=reality&pbk=FkmYFobwxLMLEktYXywmjthuEYCZggITsxwPNasTKUg&sid=c8597fb67d55d9c4#188.%20%F0%9F%87%B7%F0%9F%87%BA%20VLESS%20%7C%20SNI%3A%20rutube.ru%20%7C%20CIDR%3A%20%3F%20%7C%20TG%3A%20%40wlrustg
 
 vless://5787d9c1-d2cc-4171-a3c9-014bcd49c30b@37.139.33.15:8443/?type=tcp&encryption=none&flow=xtls-rprx-vision&sni=m.vk.ru&fp=chrome&security=reality&pbk=7zd9mJilgjOrg_ohtw23Vmio-pdnYqeP_r-kiWt87Cg&sid=8ba12e75110b7a9c#189.%20%F0%9F%87%AD%F0%9F%87%BA%20VLESS%20%7C%20SNI%3A%20m.vk.ru%20%7C%20CIDR%3A%20%3F%20%7C%20TG%3A%20%40wlrustg
-
