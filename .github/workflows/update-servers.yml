@@ -73,7 +73,7 @@ env:
 
 jobs:
   update:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: write
@@ -83,22 +83,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
-    - name: Show info
-      run: echo "🕐 Запуск скрипта..."
-      shell: bash
-
-    - name: Check Python installation
-      run: python --version
-      shell: bash
-      continue-on-error: true   # если Python не установлен, не падаем
-
-    - name: Test connection to GitHub
-      run: |
-        curl -I https://github.com
-        curl -I https://raw.githubusercontent.com
-      shell: bash
-      continue-on-error: true
 
     - name: Set up Python
       uses: actions/setup-python@v5   # используем v5
