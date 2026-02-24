@@ -84,6 +84,10 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Set PowerShell execution policy for setup
+      run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+      shell: powershell
+
     - name: 🐍 Set up Python
       uses: actions/setup-python@v4
       with:
