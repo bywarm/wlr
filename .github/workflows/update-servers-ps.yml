@@ -2,7 +2,7 @@ name: Update Configs Hourly (Windows)
 
 on:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: '0 * * * *'
   push:
     branches: [ main ]
   workflow_dispatch:
@@ -13,13 +13,11 @@ on:
         default: 'confs'
 
 env:
-  # Общие переменные (оставляем как есть)
   MY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITVERSE_TOKEN: ${{ secrets.GITVERSE_TOKEN }}
   CLOUD_RU_SECRET_KEY: ${{ secrets.CLOUD_RU_SECRET_KEY }}
   OUTPUT_DIR: ${{ github.event.inputs.folder_name || 'confs' }}
 
-  # Переменные для проверки (можно оставить те же)
   MODE: single
   LINKS_FILE: links.txt
   OUTPUT_FILE: available
@@ -59,7 +57,7 @@ env:
 
 jobs:
   update:
-    runs-on: self-hosted  # используем ваш Windows-раннер
+    runs-on: self-hosted
     timeout-minutes: 15
     permissions:
       contents: write
@@ -70,28 +68,32 @@ jobs:
       with:
         fetch-depth: 0
 
-    # PowerShell теперь доступен, настраиваем политику выполнения (если ещё не сделано)
-    - name: ⚙️ Set PowerShell execution policy (temporary)
+    - name: ⚙️ Set PowerShell execution policy
       run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
       shell: powershell
 
-    # Проверяем Python (уже должен быть установлен)
-    - name: 🐍 Verify Python installation
-      run: python --version
+    # ⚠️ ИЗМЕНИТЕ ЭТОТ ПУТЬ НА РЕАЛЬНЫЙ ПУТЬ К ВАШЕМУ python.exe
+    - name: 🔧 Set Python executable path
+      run: |
+        $pythonPath = "C:\savin\YOUR_USERNAME\AppData\Local\Programs\Python\Python311\python.exe"
+        if (Test-Path $pythonPath) {
+            Write-Host "✅ Python найден: $pythonPath"
+            echo "PYTHON_EXE=$pythonPath" >> $env:GITHUB_ENV
+        } else {
+            Write-Host "❌ Python не найден по пути $pythonPath. Проверьте путь!"
+            exit 1
+        }
       shell: powershell
 
-    # Устанавливаем зависимости (pip должен быть)
     - name: 📦 Install Python dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install PyGithub requests urllib3 boto3 aiohttp tqdm pyyaml
+        & "$env:PYTHON_EXE" -m pip install --upgrade pip
+        & "$env:PYTHON_EXE" -m pip install PyGithub requests urllib3 boto3 aiohttp tqdm pyyaml
       shell: powershell
 
     - name: 🚀 Run merge script
-      run: python scripts/simple_merge.py
+      run: & "$env:PYTHON_EXE" scripts/simple_merge.py
       shell: powershell
-      env:
-        OUTPUT_DIR: ${{ env.OUTPUT_DIR }}
 
     - name: 📄 Verify merged.txt exists
       run: |
@@ -105,7 +107,6 @@ jobs:
         Get-Content "$env:OUTPUT_DIR/merged.txt" -TotalCount 5
       shell: powershell
 
-    # Создаём raw_links.txt (без фрагментов) прямо из merged.txt
     - name: 📄 Prepare raw links (without fragment)
       run: |
         Get-Content "$env:OUTPUT_DIR/merged.txt" | Where-Object { $_ -match '^vless://' } | ForEach-Object { $_ -replace '#.*$', '' } | Where-Object { $_ -ne '' } | Set-Content raw_links.txt
@@ -122,19 +123,13 @@ jobs:
     - name: 🔍 Run vless_checker on raw links
       env:
         LINKS_FILE: raw_links.txt
-        # Можно переопределить любые переменные, если нужно
-      run: python vless_checker.py
+      run: & "$env:PYTHON_EXE" vless_checker.py
       shell: powershell
 
-    # Далее ваши шаги speedtest и коммита (они должны быть переписаны под PowerShell аналогично)
-    # Пример для speedtest (если нужен):
     - name: ⚡ Run speedtest on configs/available
       if: env.SPEED_TEST_ENABLED == 'true'
-      run: python speedtest_checker.py configs/available
+      run: & "$env:PYTHON_EXE" speedtest_checker.py configs/available
       shell: powershell
-      env:
-        SPEED_TEST_ENABLED: ${{ env.SPEED_TEST_ENABLED }}
-        # ... остальные переменные
 
     - name: 🔁 Replace available with speedtest result
       if: env.SPEED_TEST_ENABLED == 'true'
@@ -153,10 +148,9 @@ jobs:
       shell: powershell
 
     - name: 📌 Add checked files to git
-      run: |
-        git add configs/available configs/available(top100) configs/notworkers
+      run: git add configs/available configs/available(top100) configs/notworkers
       shell: powershell
-      continue-on-error: true   # на случай, если файлов нет
+      continue-on-error: true
 
     - name: 💾 Commit and push changes
       run: |
@@ -167,8 +161,7 @@ jobs:
         git add "$env:OUTPUT_DIR/*"
         git add README.md
 
-        $status = git diff --cached --quiet
-        if ($LASTEXITCODE -eq 0) {
+        if (git diff --cached --quiet) {
             Write-Host "🔄 Нет изменений для коммита"
             exit 0
         }
