@@ -110,7 +110,13 @@ jobs:
         echo "merged.txt готов, строк: $(wc -l < $OUTPUT_DIR/merged.txt)"
         echo "Первые 5 строк merged.txt:"
         head -n 5 "$OUTPUT_DIR/merged.txt"
-
+    - name: 🧹 Clear cache and disable notworkers
+      run: |
+       rm -f .checker_cache.json
+       if [ -f confs/notworkers ]; then
+         mv confs/notworkers confs/notworkers.bak
+        echo "notworkers отключён (переименован)"
+        fi
     - name: 🔍 Run vless_checker on merged.txt (single mode)
       env:
         MODE: single   # переопределяем режим
