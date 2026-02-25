@@ -104,6 +104,8 @@ EXCLUDE_PATTERNS = [
     "38388282",
     "star_test1",
     "11111111-1111-1111-1111-111111111111",
+    "a0c5e6d9-519e-4fc1-8b51-27188a2452fe",
+    "5e9d63d9-0a7c-4af6-a938-c8130dde089a",
 ]
 
 EXCLUDE_SETTINGS = {
