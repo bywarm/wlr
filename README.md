@@ -3,8 +3,8 @@
 
 | Файл | Описание | Конфигов | Время обновления | Дата |
 |------|----------|----------|------------------|------|
-| [`merged.txt`](https://github.com/bywarm/wlr/raw/main/merged.txt) | Все конфиги из 20 источников | 13002 | 22:36 | 01.03.2026 |
-| [`wl.txt`](https://github.com/bywarm/wlr/raw/main/githubmirror/wl.txt) | Только конфиги из 215 подсетей | 3039 | 22:36 | 01.03.2026 |
-| [`selected.txt`](https://github.com/bywarm/wlr/raw/main/githubmirror/selected.txt) | Отборные админами конфиги | не знаю | 22:36 | 01.03.2026 |
-| [`black.txt`](https://github.com/bywarm/wlr/raw/main/githubmirror/black.txt) | Конфиги не в whitelist | 9963 | 22:36 | 01.03.2026 |
+| [`merged.txt`](https://github.com/bywarm/wlr/raw/main/merged.txt) | Все конфиги из 20 источников | 13043 | 23:14 | 01.03.2026 |
+| [`wl.txt`](https://github.com/bywarm/wlr/raw/main/githubmirror/wl.txt) | Только конфиги из 215 подсетей | 3071 | 23:14 | 01.03.2026 |
+| [`selected.txt`](https://github.com/bywarm/wlr/raw/main/githubmirror/selected.txt) | Отборные админами конфиги | не знаю | 23:14 | 01.03.2026 |
+| [`black.txt`](https://github.com/bywarm/wlr/raw/main/githubmirror/black.txt) | Конфиги не в whitelist | 9972 | 23:14 | 01.03.2026 |
 
