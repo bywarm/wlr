@@ -91,6 +91,7 @@ def get_paths():
         "merged": f"{base_dir}/{CONFIG['merged_file']}",
         "wl": f"{base_dir}/{CONFIG['wl_file']}",
         "selected": f"{base_dir}/{CONFIG['selected_file']}",
+        "black": f"{base_dir}/black.txt",
         "gh_pages_merged": "merged.txt",
         "gh_pages_wl": "wl.txt",
     }
@@ -106,6 +107,7 @@ EXCLUDE_PATTERNS = [
     "11111111-1111-1111-1111-111111111111",
     "a0c5e6d9-519e-4fc1-8b51-27188a2452fe",
     "5e9d63d9-0a7c-4af6-a938-c8130dde089a",
+    "xxxxxxxxxx1",
 ]
 
 EXCLUDE_SETTINGS = {
@@ -344,7 +346,7 @@ for subnet_str, name in CIDR_NAME_MAPPING.items():
     except Exception as e:
         log(f"Ошибка в подсети {subnet_str}: {e}")
 
-# Список URL для парсинга
+# Список URL для парсинга (обновлён)
 URLS = [
     "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-checked.txt",
     "https://raw.githubusercontent.com/zieng2/wl/refs/heads/main/vless_universal.txt",
@@ -361,6 +363,12 @@ URLS = [
     "https://raw.githubusercontent.com/gbwltg/gbwl/refs/heads/main/m3EsPqwmlc",
     "https://gitverse.ru/api/repos/LowiK/LowiKLive/raw/branch/main/ObhodBSfree.txt",
     "https://raw.githubusercontent.com/bywarm/wlr/refs/heads/main/test.txt",
+    # Новые источники
+    "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-all.txt",
+    "https://airlinkvpn.github.io/1.txt",
+    "https://raw.githubusercontent.com/prominbro/KfWL/refs/heads/main/KfWL.txt",
+    "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_VLESS_RUS.txt",
+    "https://raw.githubusercontent.com/barry-far/V2ray-config/main/All_Configs_Sub.txt",
 ]
 
 # Словарь маркеров благодарности
@@ -774,6 +782,8 @@ def save_to_file(configs: list[str], file_type: str, description: str = "", add_
         with open(filepath, "w", encoding="utf-8", errors="replace") as f:
             if 'Whitelist' in description:
                 f.write("#profile-title: WL RUS (wl.txt)\n")
+            elif 'Черный' in description or 'Black' in description:
+                f.write("#profile-title: WL RUS (black.txt)\n")
             else:
                 f.write("#profile-title: WL RUS (all)\n")
             f.write("#profile-update-interval: 24\n")
@@ -871,6 +881,7 @@ def update_readme(total_configs: int, wl_configs_count: int):
         raw_url_merged = f"https://github.com/{REPO_NAME}/raw/main/merged.txt"
         raw_url_wl = f"https://github.com/{REPO_NAME}/raw/main/githubmirror/wl.txt"
         raw_url_selected = f"https://github.com/{REPO_NAME}/raw/main/githubmirror/selected.txt"
+        raw_url_black = f"https://github.com/{REPO_NAME}/raw/main/githubmirror/black.txt"
         time_parts = offset.split(" | ")
         time_part = time_parts[0] if len(time_parts) > 0 else ""
         date_part = time_parts[1] if len(time_parts) > 1 else ""
@@ -881,7 +892,8 @@ def update_readme(total_configs: int, wl_configs_count: int):
 |------|----------|----------|------------------|------|
 | [`merged.txt`]({raw_url_merged}) | Все конфиги из {len(URLS)} источников | {total_configs} | {time_part} | {date_part} |
 | [`wl.txt`]({raw_url_wl}) | Только конфиги из {len(WHITELIST_SUBNETS)} подсетей | {wl_configs_count} | {time_part} | {date_part} |
-| [`selected.txt`]({raw_url_selected}) | Отборные админами конфиги, самый надежный список | не знаю | {time_part} | {date_part} |
+| [`selected.txt`]({raw_url_selected}) | Отборные админами конфиги | не знаю | {time_part} | {date_part} |
+| [`black.txt`]({raw_url_black}) | Конфиги не в whitelist | {total_configs - wl_configs_count} | {time_part} | {date_part} |
 
 """
         sha = readme_file.sha if 'readme_file' in locals() else None
@@ -1137,23 +1149,46 @@ def main():
     filtered_wl, excluded_wl = filter_excluded_configs(whitelist_configs, excluded_file="excluded_wl.txt")
     unique_configs, whitelist_configs = filtered_unique, filtered_wl
     log(f"✅ После исключений: merged={len(unique_configs)}, wl={len(whitelist_configs)}")
+
+    # NEW: compute black configs (all unique minus whitelist)
+    whitelist_set = set(whitelist_configs)
+    black_configs = [cfg for cfg in unique_configs if cfg not in whitelist_set]
+    log(f"⚫ Черный список (не в whitelist): {len(black_configs)} конфигов")
+
     os.makedirs("confs", exist_ok=True)
     save_to_file(unique_configs, "merged", "Объединённые конфиги", add_numbering=True)
     save_to_file(whitelist_configs, "wl", "Whitelist конфиги", add_numbering=True)
+    save_to_file(black_configs, PATHS["black"], "Черный список (не в whitelist)", add_numbering=True)
+
     log("🌐 Загрузка на GitHub...")
     upload_to_github(PATHS["merged"])
     upload_to_github(PATHS["wl"])
     upload_to_github(PATHS["selected"])
+    upload_to_github(PATHS["black"])
+
     log("☁️ Загрузка в Cloud.ru...")
-    for s3_name, local in {"merged.txt": PATHS["merged"], "wl.txt": PATHS["wl"], "selected.txt": PATHS["selected"]}.items():
+    for s3_name, local in {
+        "merged.txt": PATHS["merged"],
+        "wl.txt": PATHS["wl"],
+        "selected.txt": PATHS["selected"],
+        "black.txt": PATHS["black"],
+    }.items():
         if os.path.exists(local):
             upload_to_cloud_ru(local, s3_name)
+
     if GITVERSE_TOKEN:
         log("🚀 Загрузка на GitVerse...")
-        for remote, local in {"merged.txt": PATHS["merged"], "wl.txt": PATHS["wl"], "selected.txt": PATHS["selected"]}.items():
+        for remote, local in {
+            "merged.txt": PATHS["merged"],
+            "wl.txt": PATHS["wl"],
+            "selected.txt": PATHS["selected"],
+            "black.txt": PATHS["black"],
+        }.items():
             if os.path.exists(local):
                 upload_to_gitverse(local, remote)
+
     update_readme(len(unique_configs), len(whitelist_configs))
+
     log("="*60)
     log("📊 ИТОГИ:")
     log(f"   🌐 Источников: {len(URLS)}")
@@ -1162,7 +1197,9 @@ def main():
     log(f"   🔄 Уникальных: {len(filtered_unique)}")
     log(f"   🚫 Исключено: {len(excluded_unique)+len(excluded_wl)}")
     log(f"   🛡️ Whitelist: {len(filtered_wl)}")
+    log(f"   ⚫ Blacklist: {len(black_configs)}")
     log("="*60)
+
     print("\n📋 ЛОГИ ВЫПОЛНЕНИЯ (" + offset + "):")
     print("="*60)
     for line in LOGS_BY_FILE[0]:
