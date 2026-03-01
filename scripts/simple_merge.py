@@ -357,13 +357,12 @@ URLS = [
     "https://raw.githubusercontent.com/HikaruApps/WhiteLattice/refs/heads/main/subscriptions/main-sub.txt",
     "https://raw.githubusercontent.com/FalerChannel/FalerChannel/refs/heads/main/configs",
     "https://raw.githubusercontent.com/officialdakari/psychic-octo-tribble/refs/heads/main/subwl.txt",
-    "https://raw.githubusercontent.com/RKPchannel/RKP_bypass_configs/refs/heads/main/configs",
+    "https://raw.githubusercontent.com/RKPchannel/RKP_bypass_configs/refs/heads/main/configs/url_work.txt",
     "https://raw.githubusercontent.com/Ai123999/WhiteeListSub/refs/heads/main/whitelistkeys",
     "https://raw.githubusercontent.com/EtoNeYaProject/etoneyaproject.github.io/refs/heads/main/whitelist",
     "https://raw.githubusercontent.com/gbwltg/gbwl/refs/heads/main/m3EsPqwmlc",
     "https://gitverse.ru/api/repos/LowiK/LowiKLive/raw/branch/main/ObhodBSfree.txt",
     "https://raw.githubusercontent.com/bywarm/wlr/refs/heads/main/test.txt",
-    # Новые источники
     "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-all.txt",
     "https://airlinkvpn.github.io/1.txt",
     "https://raw.githubusercontent.com/prominbro/KfWL/refs/heads/main/KfWL.txt",
@@ -375,6 +374,7 @@ URLS = [
 THANKS_MARKERS = {
     '@YoutubeUnBlockRu': '@YoutubeUnBlockRu',
     'gbwl': '@gbwl',
+    '9A%D0%9F%5D': '@rkp_channel',
 }
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
