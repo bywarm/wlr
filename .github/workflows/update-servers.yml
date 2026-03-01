@@ -127,7 +127,7 @@ jobs:
         MAX_RESPONSE_TIME: 15
         MAX_LATENCY_MS: 5000           # или 0 (отключить)
         STABILITY_CHECKS: 1
-      run: python vless_checker.py "$OUTPUT_DIR/merged.txt"
+      run: python vless_checker.py "$OUTPUT_DIR/black.txt"
 
     - name: 📌 Add checked files to git
       run: |
