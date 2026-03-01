@@ -22,7 +22,7 @@ env:
   # Переменные для Xray-проверки (vless_checker.py и speedtest_checker.py)
   MODE: merge
   LINKS_FILE: links.txt
-  OUTPUT_FILE: available
+  OUTPUT_FILE: blacklist.txt
   OUTPUT_ADD_DATE: 'false'
   MAX_WORKERS: 600
   EXPORT_FORMAT: txt
