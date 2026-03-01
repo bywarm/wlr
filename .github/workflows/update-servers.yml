@@ -19,58 +19,6 @@ env:
   CLOUD_RU_SECRET_KEY: ${{ secrets.CLOUD_RU_SECRET_KEY }}
   OUTPUT_DIR: ${{ github.event.inputs.folder_name || 'confs' }}
 
-  # Переменные для Xray-проверки (vless_checker.py и speedtest_checker.py)
-  MODE: merge
-  LINKS_FILE: links.txt
-  OUTPUT_FILE: blacklist.txt
-  OUTPUT_ADD_DATE: 'false'
-  MAX_WORKERS: 600
-  EXPORT_FORMAT: txt
-  ENABLE_CACHE: 'false'
-  TEST_URLS: http://www.google.com/generate_204,http://www.cloudflare.com/cdn-cgi/trace
-  TEST_URLS_HTTPS: https://www.gstatic.com/generate_204
-  REQUIRE_HTTPS: 'false'
-  STRONG_STYLE_TEST: 'false'
-  STRONG_STYLE_TIMEOUT: 12
-  STRONG_MAX_RESPONSE_TIME: 3
-  STRONG_DOUBLE_CHECK: 'true'
-  STRONG_ATTEMPTS: 3
-  REQUESTS_PER_URL: 1
-  MIN_SUCCESSFUL_REQUESTS: 1
-  MIN_SUCCESSFUL_URLS: 1
-  REQUEST_DELAY: 0.1
-  CONNECT_TIMEOUT: 6
-  CONNECT_TIMEOUT_SLOW: 15
-  USE_ADAPTIVE_TIMEOUT: 'false'
-  MAX_RETRIES: 1
-  MAX_RESPONSE_TIME: 10
-  MIN_RESPONSE_SIZE: 0
-  MAX_LATENCY_MS: 2000
-  VERIFY_HTTPS_SSL: 'false'
-  STABILITY_CHECKS: 2
-  STABILITY_CHECK_DELAY: 2.0
-  STRICT_MODE: 'true'
-  STRICT_MODE_REQUIRE_ALL: 'true'
-  TEST_POST_REQUESTS: 'false'
-
-  # Speedtest
-  SPEED_TEST_ENABLED: 'false'
-  SPEED_TEST_TIMEOUT: 2
-  SPEED_TEST_MODE: full
-  SPEED_TEST_METRIC: latency
-  SPEED_TEST_OUTPUT: separate_file
-  SPEED_TEST_REQUESTS: 5
-  SPEED_TEST_URL: https://www.gstatic.com/generate_204
-  SPEED_TEST_WORKERS: 600
-  SPEED_TEST_DOWNLOAD_TIMEOUT: 30
-  SPEED_TEST_DOWNLOAD_URL_SMALL: https://speed.cloudflare.com/__down?bytes=250000
-  SPEED_TEST_DOWNLOAD_URL_MEDIUM: https://speed.cloudflare.com/__down?bytes=1000000
-  MIN_SPEED_THRESHOLD_MBPS: 1
-  SPEED_TEST_DEBUG: 'false'
-  XRAY_STARTUP_WAIT: 1.8
-  XRAY_STARTUP_POLL_INTERVAL: 0.2
-  BASE_PORT: 20000
-
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -85,7 +33,7 @@ jobs:
         fetch-depth: 0
 
     - name: Set up Python
-      uses: actions/setup-python@v5   # используем v5
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: pip
@@ -99,7 +47,7 @@ jobs:
       run: |
         echo "🕐 Запуск скрипта..."
         echo "📁 Используемая папка: $OUTPUT_DIR"
-        python scripts/simple_merge.py   # предполагается, что скрипт лежит в scripts/
+        python scripts/simple_merge.py
 
     - name: 📄 Verify merged.txt exists
       run: |
@@ -110,28 +58,6 @@ jobs:
         echo "merged.txt готов, строк: $(wc -l < $OUTPUT_DIR/merged.txt)"
         echo "Первые 5 строк merged.txt:"
         head -n 5 "$OUTPUT_DIR/merged.txt"
-    - name: 🧹 Clear cache and disable notworkers
-      run: |
-       rm -f .checker_cache.json
-       if [ -f confs/notworkers ]; then
-         mv confs/notworkers confs/notworkers.bak
-        echo "notworkers отключён (переименован)"
-        fi
-    - name: 🔍 Run vless_checker (very relaxed)
-      env:
-        MODE: single
-        STRONG_STYLE_TEST: 'false'
-        MIN_SUCCESSFUL_URLS: 1
-        REQUESTS_PER_URL: 1
-        REQUIRE_HTTPS: 'false'        # или 'true', если клиенты используют HTTPS
-        MAX_RESPONSE_TIME: 15
-        MAX_LATENCY_MS: 5000           # или 0 (отключить)
-        STABILITY_CHECKS: 1
-      run: python vless_checker.py "$OUTPUT_DIR/black.txt"
-
-    - name: 📌 Add checked files to git
-      run: |
-        git add confs/available "confs/available(top100)" confs/notworkers || true
 
     - name: 💾 Commit and push changes
       run: |
